@@ -219,3 +219,60 @@ def test_the_forwarded_header_wins_over_the_proxy_socket():
     assert analytics.client_ip_from_request(direct) == "203.0.113.7"
 
     assert analytics.client_ip_from_request(FakeRequest({}, None)) is None
+
+
+def test_instance_defaults_to_the_app_host(monkeypatch):
+    monkeypatch.setattr(analytics.settings, "POSTHOG_INSTANCE", None)
+    monkeypatch.setattr(analytics.settings, "PUBLIC_APP_BASE_URL", "https://app.gstbill.in/")
+
+    assert analytics.instance_name() == "app.gstbill.in"
+
+
+def test_instance_override_wins(monkeypatch):
+    monkeypatch.setattr(analytics.settings, "POSTHOG_INSTANCE", " si-common ")
+    monkeypatch.setattr(analytics.settings, "PUBLIC_APP_BASE_URL", "https://app.gstbill.in")
+
+    assert analytics.instance_name() == "si-common"
+
+
+def test_instance_is_none_without_a_usable_url(monkeypatch):
+    monkeypatch.setattr(analytics.settings, "POSTHOG_INSTANCE", None)
+    monkeypatch.setattr(analytics.settings, "PUBLIC_APP_BASE_URL", "")
+
+    assert analytics.instance_name() is None
+
+
+def test_client_tags_every_event_with_the_instance(monkeypatch):
+    import posthog
+
+    made = {}
+
+    class FakePosthog:
+        def __init__(self, api_key, **kwargs):
+            made.update(kwargs)
+
+    monkeypatch.setattr(posthog, "Posthog", FakePosthog)
+    monkeypatch.setattr(analytics.settings, "POSTHOG_PROJECT_API_KEY", "phc_test")
+    monkeypatch.setattr(analytics.settings, "POSTHOG_INSTANCE", None)
+    monkeypatch.setattr(analytics.settings, "PUBLIC_APP_BASE_URL", "https://pts.gstbill.in")
+
+    assert analytics.is_analytics_ready() is True
+    assert made["super_properties"] == {"instance": "pts.gstbill.in"}
+
+
+def test_client_sends_no_instance_when_there_is_none(monkeypatch):
+    import posthog
+
+    made = {}
+
+    class FakePosthog:
+        def __init__(self, api_key, **kwargs):
+            made.update(kwargs)
+
+    monkeypatch.setattr(posthog, "Posthog", FakePosthog)
+    monkeypatch.setattr(analytics.settings, "POSTHOG_PROJECT_API_KEY", "phc_test")
+    monkeypatch.setattr(analytics.settings, "POSTHOG_INSTANCE", None)
+    monkeypatch.setattr(analytics.settings, "PUBLIC_APP_BASE_URL", "")
+
+    assert analytics.is_analytics_ready() is True
+    assert made["super_properties"] is None

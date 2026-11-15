@@ -26,6 +26,7 @@ import logging
 from contextlib import contextmanager
 from contextvars import ContextVar
 from typing import Any, Iterator, Optional
+from urllib.parse import urlparse
 
 from src.core.config import settings
 
@@ -61,6 +62,22 @@ _mcp_tool: ContextVar[Optional[str]] = ContextVar("posthog_mcp_tool", default=No
 _mcp_intent: ContextVar[Optional[str]] = ContextVar("posthog_mcp_intent", default=None)
 
 
+def instance_name() -> Optional[str]:
+    """Names this deployment on every event, e.g. "app.gstbill.in".
+
+    Every hosted tenant reports into the same PostHog project, so without this
+    the shared-hosting sign-ups and each self-hosted company's activity are
+    indistinguishable except person by person.
+    """
+    explicit = (settings.POSTHOG_INSTANCE or "").strip()
+    if explicit:
+        return explicit
+    try:
+        return urlparse(settings.PUBLIC_APP_BASE_URL or "").hostname or None
+    except ValueError:
+        return None
+
+
 def _get_client():
     """Returns the PostHog client, or None when analytics is not configured."""
     global _client, _init_attempted
@@ -76,6 +93,7 @@ def _get_client():
     try:
         from posthog import Posthog
 
+        instance = instance_name()
         _client = Posthog(
             settings.POSTHOG_PROJECT_API_KEY,
             host=settings.POSTHOG_HOST,
@@ -87,6 +105,9 @@ def _get_client():
             # GeoIP lookup on it would attach confidently wrong geography to every
             # person. Better no country than the wrong one.
             disable_geoip=True,
+            # Merged into everything this client sends -- product events,
+            # personless share-page events and exceptions alike.
+            super_properties={"instance": instance} if instance else None,
         )
     except Exception:  # pragma: no cover - defensive: never break boot
         logger.debug("PostHog client could not be created; analytics disabled", exc_info=True)

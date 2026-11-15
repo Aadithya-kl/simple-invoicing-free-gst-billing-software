@@ -213,12 +213,14 @@ reconfigured at runtime.
 | `DEBUG` | `true` | `false` | Debug mode (detailed error messages) | ✓ |
 | `POSTHOG_PROJECT_API_KEY` | `phc_...` | `phc_...` | PostHog project key — product events are captured server-side | |
 | `POSTHOG_HOST` | `https://eu.i.posthog.com` | `https://eu.i.posthog.com` | PostHog ingestion host (`us.i.posthog.com` for US Cloud) | |
+| `POSTHOG_INSTANCE` | *(unset)* | *(unset)* | Name sent as the `instance` property on every event; defaults to the host of `PUBLIC_APP_BASE_URL` | |
 
 **PostHog Note**: Product events live on the backend so that an event fires when
 the write actually committed, not when a request appeared to succeed — and so
 that the same action taken through the MCP connector or an API key is counted
 identically. Every event carries a `client` property of `web`, `mcp` or `api`
-saying which. Leave `POSTHOG_PROJECT_API_KEY` blank and the app runs with
+saying which, and an `instance` property naming the deployment that sent it,
+so several instances can share one PostHog project. Leave `POSTHOG_PROJECT_API_KEY` blank and the app runs with
 analytics off, silently, in every environment. Unlike the `VITE_` pair, these are
 read at runtime, so an existing image picks them up from its secret with a
 restart — no rebuild.

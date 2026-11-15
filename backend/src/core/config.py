@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     # environment -- see src/core/analytics.py.
     POSTHOG_PROJECT_API_KEY: str | None = None
     POSTHOG_HOST: str = "https://eu.i.posthog.com"
+    # Every event carries an `instance` property naming the deployment that sent
+    # it, because all hosted tenants share one PostHog project. Defaults to the
+    # host of PUBLIC_APP_BASE_URL (e.g. "app.gstbill.in"); set this to override.
+    POSTHOG_INSTANCE: str | None = None
 
     # --- MCP server + OAuth authorization server ---
     # Public origin of this API. Doubles as the OAuth issuer and the base of the
