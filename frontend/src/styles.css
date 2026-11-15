@@ -8957,3 +8957,8 @@ a.ledger-chip:focus-visible {
   color: var(--text);
   font-weight: 600;
 }
+
+/* The first company setup: one short card, a readable width, not the full page. */
+.company-setup-first {
+  max-width: 640px;
+}

@@ -85,3 +85,18 @@ export function isCompanyFormDirty<T extends object>(saved: T | null, current: T
   const b = current as Record<string, unknown>;
   return Object.keys({ ...a, ...b }).some((key) => a[key] !== b[key]);
 }
+
+export type MissingCompanyFields = { name?: string; address?: string };
+
+/**
+ * The required company fields left blank, each with the message shown under it.
+ * The form checks these itself rather than leaving it to the browser: the
+ * browser names one field per Save press, in a bubble that a phone has often
+ * scrolled out of view, so to a new user the Save button seemed to do nothing.
+ */
+export function missingCompanyFields(form: { name: string; address: string }): MissingCompanyFields {
+  const missing: MissingCompanyFields = {};
+  if (!form.name.trim()) missing.name = 'Enter your business name.';
+  if (!form.address.trim()) missing.address = 'Enter your business address. It is printed on every invoice.';
+  return missing;
+}

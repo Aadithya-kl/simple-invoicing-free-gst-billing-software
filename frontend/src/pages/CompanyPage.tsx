@@ -13,7 +13,7 @@ import { INVOICE_PATH } from '../features/firstInvoiceTour/tourSteps';
 import { setupPromptChoices } from '../utils/setupPrompt';
 import { useFY } from '../context/FYContext';
 import type { CompanyProfile, CompanyProfileUpdate, InvoiceSeries, InvoiceSeriesUpdate, CompanyTermOut } from '../types/api';
-import { clearSetupDraft, isCompanyConfigured, isCompanyFormDirty, readSetupDraft, writeSetupDraft } from '../utils/companySetup';
+import { clearSetupDraft, isCompanyConfigured, isCompanyFormDirty, missingCompanyFields, readSetupDraft, writeSetupDraft, type MissingCompanyFields } from '../utils/companySetup';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { isCurrencyChange } from '../utils/currencyChange';
 import { buildSeriesPreview, gstr1SeriesFormatError } from '../utils/seriesPreview';
@@ -733,8 +733,10 @@ export default function CompanyPage() {
   const companyRole = useAuthStore((state) => state.companyRole);
   const setupChoices = setupPromptChoices(companyRole);
   const seriesSectionRef = useRef<HTMLElement>(null);
-  const companySetupSectionRef = useRef<HTMLElement>(null);
   const gstInputRef = useRef<HTMLInputElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const addressInputRef = useRef<HTMLTextAreaElement>(null);
+  const [missingFields, setMissingFields] = useState<MissingCompanyFields>({});
   // What the server holds, to tell unsaved edits apart. Null until a profile loads.
   const [savedForm, setSavedForm] = useState<CompanyProfileUpdate | null>(null);
   // Where to go once the pending save succeeds ("Save and open").
@@ -784,15 +786,9 @@ export default function CompanyPage() {
   const [identityErrors, setIdentityErrors] = useState<CompanyIdentityErrors>({});
   const gstError = identityErrors.gst ?? '';
   const [showFirstSetupPrompt, setShowFirstSetupPrompt] = useState(false);
+  // No "Complete company setup" popup any more: it was one more click between a
+  // new user and the form, and read as homework. The short form says it instead.
   const setupRequiredByRoute = searchParams.get('setup') === 'required';
-  const [showSetupDialog, setShowSetupDialog] = useState(setupRequiredByRoute);
-  const [highlightCompanySetup, setHighlightCompanySetup] = useState(false);
-
-  useEffect(() => {
-    if (setupRequiredByRoute) {
-      setShowSetupDialog(true);
-    }
-  }, [setupRequiredByRoute]);
 
   async function loadCompanyProfile() {
     try {
@@ -878,6 +874,16 @@ export default function CompanyPage() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    // Every blank required field at once, under the field, with the first in view.
+    const missing = missingCompanyFields(form);
+    setMissingFields(missing);
+    const firstMissing = missing.name ? nameInputRef.current : missing.address ? addressInputRef.current : null;
+    if (firstMissing) {
+      firstMissing.focus();
+      firstMissing.scrollIntoView({ block: 'center' });
+      return;
+    }
 
     if (!noCompany && isCurrencyChange(savedCurrency, form.currency_code)) {
       setSubmitting(true);
@@ -992,6 +998,28 @@ export default function CompanyPage() {
 
   const formDirty = isCompanyFormDirty(savedForm, form);
 
+  const addressInput = (
+    <>
+      <textarea
+        id="company-address"
+        ref={addressInputRef}
+        className="textarea"
+        value={form.address}
+        onChange={(event) => {
+          setMissingFields((current) => ({ ...current, address: undefined }));
+          setForm((current) => ({ ...current, address: event.target.value }));
+        }}
+        autoComplete="street-address"
+        required
+        aria-invalid={missingFields.address ? true : undefined}
+        aria-describedby={missingFields.address ? 'company-address-error' : 'company-address-hint'}
+      />
+      {missingFields.address
+        ? <p className="field-error" id="company-address-error" role="alert">{missingFields.address}</p>
+        : <small className="field-hint" id="company-address-hint">Printed on every invoice, e.g. 14 Laxmi Road, Pune 411030.</small>}
+    </>
+  );
+
   function handleCreateFirstInvoice() {
     setShowFirstSetupPrompt(false);
     useFirstInvoiceTourStore.getState().start();
@@ -1003,29 +1031,22 @@ export default function CompanyPage() {
     navigate('/');
   }
 
-  function dismissSetupDialog() {
-    setShowSetupDialog(false);
-    setHighlightCompanySetup(true);
-    setTimeout(() => setHighlightCompanySetup(false), 2500);
-
-    const section = companySetupSectionRef.current;
-    if (section) {
-      section.focus({ preventScroll: true });
-    }
-
-    if (setupRequiredByRoute) {
-      navigate('/settings/company', { replace: true });
-    }
-  }
-
   return (
     <div className="page-grid">
       <section className="page-hero">
-        <div>
-          <p className="eyebrow">Company</p>
-          <h1 className="page-title">Billing identity</h1>
-          <p className="section-copy">Set the company details, branding, and legal terms that appear on invoices and other documents.</p>
-        </div>
+        {noCompany || (loading && setupRequiredByRoute) ? (
+          <div>
+            <p className="eyebrow">Getting started</p>
+            <h1 className="page-title">Add your business</h1>
+            <p className="section-copy">Two details and you can make your first invoice. GSTIN, PAN, bank and invoice settings can wait until later.</p>
+          </div>
+        ) : (
+          <div>
+            <p className="eyebrow">Company</p>
+            <h1 className="page-title">Billing identity</h1>
+            <p className="section-copy">Set the company details, branding, and legal terms that appear on invoices and other documents.</p>
+          </div>
+        )}
       </section>
 
       <StatusToasts error={error} success={success} onClearError={() => setError('')} onClearSuccess={() => setSuccess('')} />
@@ -1061,33 +1082,6 @@ export default function CompanyPage() {
             setShowCurrencyWarning(false);
           }}
         />
-      ) : null}
-
-      {showSetupDialog ? (
-        <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="setup-required-title">
-          <div className="modal-panel">
-            <div className="panel__header">
-              <div>
-                <p className="eyebrow">Getting started</p>
-                <h2 id="setup-required-title" className="nav-panel__title">Complete company setup to continue</h2>
-              </div>
-            </div>
-            <p className="section-copy" style={{ marginTop: '8px' }}>
-              Save your company details first. Then we will help you create your first invoice.
-            </p>
-            <div className="button-row" style={{ marginTop: '16px' }}>
-              <button
-                type="button"
-                className="button button--primary"
-                onClick={dismissSetupDialog}
-                title="Start company setup"
-                aria-label="Start company setup"
-              >
-                Start setup
-              </button>
-            </div>
-          </div>
-        </div>
       ) : null}
 
       {showFirstSetupPrompt ? (
@@ -1138,39 +1132,56 @@ export default function CompanyPage() {
         </section>
       )}
 
-      <section className="content-grid">
-        <article
-          className="panel stack"
-          ref={companySetupSectionRef}
-          tabIndex={-1}
-          style={highlightCompanySetup ? { borderColor: 'var(--color-primary)', boxShadow: '0 0 0 3px rgb(var(--rgb-highlight) / 0.25)' } : undefined}
-        >
+      {/* First setup has one short card and nothing beside it, so it takes the
+          width rather than half a two-column grid. */}
+      <section className={noCompany ? 'content-grid content-grid--single company-setup-first' : 'content-grid'}>
+        <article className="panel stack">
           <div className="panel__header">
             <div>
               <p className="eyebrow">Company setup</p>
-              <h2 className="nav-panel__title">Invoice header details</h2>
+              <h2 className="nav-panel__title">{noCompany ? 'Your business' : 'Invoice header details'}</h2>
             </div>
           </div>
           {loading ? <div className="empty-state">Loading company profile...</div> : null}
 
+          {/* No example values as placeholders: grey "Simple Invoicing Pvt Ltd" and
+              "12 MG Road" read as already filled in, and new users pressed Save on an
+              empty form. Examples go in the hint under the field instead.
+              noValidate: the required fields are checked in handleSubmit, all at once. */}
           {!loading ? (
-            <form ref={formRef} className="stack" onSubmit={handleSubmit}>
+            <form ref={formRef} className="stack" onSubmit={handleSubmit} noValidate>
               <small className="field-hint">Fields marked <span style={{ color: 'var(--color-danger)' }}>*</span> are required.</small>
               <div className="field-grid">
-                <div className="field">
-                  <label htmlFor="company-name">Company name <span style={{ color: 'var(--color-danger)' }} aria-hidden="true">*</span></label>
+                <div className={noCompany ? 'field field--full' : 'field'}>
+                  <label htmlFor="company-name">{noCompany ? 'Business name' : 'Company name'} <span style={{ color: 'var(--color-danger)' }} aria-hidden="true">*</span></label>
                   <input
                     id="company-name"
+                    ref={nameInputRef}
                     className="input"
                     value={form.name}
-                    onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-                    placeholder="Simple Invoicing Pvt Ltd"
+                    onChange={(event) => {
+                      setMissingFields((current) => ({ ...current, name: undefined }));
+                      setForm((current) => ({ ...current, name: event.target.value }));
+                    }}
+                    autoComplete="organization"
                     required
+                    aria-invalid={missingFields.name ? true : undefined}
+                    aria-describedby={missingFields.name ? 'company-name-error' : 'company-name-hint'}
                   />
+                  {missingFields.name
+                    ? <p className="field-error" id="company-name-error" role="alert">{missingFields.name}</p>
+                    : <small className="field-hint" id="company-name-hint">As it should appear on your invoices, e.g. Sharma Traders.</small>}
                 </div>
 
-                <div className="field">
-                  <label htmlFor="company-gst">GSTIN</label>
+                {noCompany ? (
+                  <div className="field field--full">
+                    <label htmlFor="company-address">Address <span style={{ color: 'var(--color-danger)' }} aria-hidden="true">*</span></label>
+                    {addressInput}
+                  </div>
+                ) : null}
+
+                <div className={noCompany ? 'field field--full' : 'field'}>
+                  <label htmlFor="company-gst">GSTIN{noCompany ? ' (optional)' : ''}</label>
                   <input
                     id="company-gst"
                     ref={gstInputRef}
@@ -1180,14 +1191,23 @@ export default function CompanyPage() {
                       setIdentityErrors((current) => ({ ...current, gst: undefined }));
                       setForm((current) => ({ ...current, gst: event.target.value }));
                     }}
-                    placeholder="27ABCDE1234F1Z0"
+                    autoCapitalize="characters"
                     aria-invalid={gstError ? true : undefined}
                     aria-describedby={gstError ? 'company-gst-error' : undefined}
                   />
-                  <small className="field-hint">Format: 27ABCDE1234F1Z0</small>
+                  <small className="field-hint">
+                    {noCompany
+                      ? 'Leave blank if you are not GST-registered. 15 characters, e.g. 27ABCDE1234F1Z0.'
+                      : 'Format: 27ABCDE1234F1Z0'}
+                  </small>
                   {gstError ? <p className="field-error" id="company-gst-error" role="alert">{gstError}</p> : null}
                 </div>
 
+                {/* The first setup asks only what an invoice cannot go without. The
+                    rest (PAN, TAN, TDS, contact details, currency, PDF options) shows
+                    once the company exists. Currency stays INR until then. */}
+                {!noCompany ? (
+                <>
                 <div className="field">
                   <label htmlFor="company-pan">PAN</label>
                   <input
@@ -1261,7 +1281,6 @@ export default function CompanyPage() {
                     className="input"
                     value={form.phone_number}
                     onChange={(event) => setForm((current) => ({ ...current, phone_number: event.target.value }))}
-                    placeholder="+91 9876543210"
                   />
                   <small className="field-hint">e.g. +91 98765 43210</small>
                 </div>
@@ -1289,7 +1308,6 @@ export default function CompanyPage() {
                     className="input"
                     value={form.email}
                     onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
-                    placeholder="billing@simple.dev"
                   />
                 </div>
 
@@ -1300,20 +1318,12 @@ export default function CompanyPage() {
                     className="input"
                     value={form.website}
                     onChange={(event) => setForm((current) => ({ ...current, website: event.target.value }))}
-                    placeholder="https://simple.dev"
                   />
                 </div>
 
                 <div className="field field--full">
                   <label htmlFor="company-address">Address <span style={{ color: 'var(--color-danger)' }} aria-hidden="true">*</span></label>
-                  <textarea
-                    id="company-address"
-                    className="textarea"
-                    value={form.address}
-                    onChange={(event) => setForm((current) => ({ ...current, address: event.target.value }))}
-                    placeholder="12 MG Road, Indiranagar, Bengaluru, Karnataka 560038"
-                    required
-                  />
+                  {addressInput}
                 </div>
 
                 <div className="field field--full">
@@ -1397,6 +1407,9 @@ export default function CompanyPage() {
                     Only for sellers of scrap, liquor, minerals, forest produce, motor vehicles or notified goods above ₹10 lakh. Ordinary sales do not attract TCS.
                   </small>
                 </div>
+
+                </>
+                ) : null}
 
                 <div className="field field--full">
                   {/* Before the first save there is no company to add accounts to, and

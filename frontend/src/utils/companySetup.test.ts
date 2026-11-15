@@ -1,6 +1,6 @@
 import { describe, expect, it, test } from 'vitest';
 import type { CompanyProfile } from '../types/api';
-import { clearSetupDraft, isCompanyConfigured, isCompanyFormDirty, isCompanySetupRequired, readSetupDraft, writeSetupDraft } from './companySetup';
+import { clearSetupDraft, isCompanyConfigured, missingCompanyFields, isCompanyFormDirty, isCompanySetupRequired, readSetupDraft, writeSetupDraft } from './companySetup';
 
 describe('isCompanySetupRequired', () => {
   const conflict = Object.assign(new Error('x'), {
@@ -112,5 +112,20 @@ describe('isCompanyFormDirty', () => {
   });
   it('is clean before the profile has loaded', () => {
     expect(isCompanyFormDirty(null, saved)).toBe(false);
+  });
+});
+
+describe('missingCompanyFields', () => {
+  test('names every blank required field at once', () => {
+    expect(missingCompanyFields({ name: '', address: '  ' })).toEqual({
+      name: 'Enter your business name.',
+      address: 'Enter your business address. It is printed on every invoice.',
+    });
+  });
+  test('only the field that is blank', () => {
+    expect(Object.keys(missingCompanyFields({ name: 'Rao Traders', address: '' }))).toEqual(['address']);
+  });
+  test('nothing missing once both are filled', () => {
+    expect(missingCompanyFields({ name: 'Rao Traders', address: '1 MG Road, Pune' })).toEqual({});
   });
 });

@@ -80,8 +80,17 @@ test.describe('Public signup', () => {
     // A brand-new account has no company, so it lands on setup.
     await expect(page).toHaveURL(/\/settings\/company\?setup=required/);
 
+    // Setup is the short form: no popup to dismiss, and no tax or bank fields yet.
+    await expect(page.getByRole('heading', { name: 'Add your business' })).toBeVisible();
+    await expect(page.locator('#company-pan')).toHaveCount(0);
+
+    // Save on an empty form names both missing fields at once, under each field.
+    await page.click('button:has-text("Save company details")');
+    await expect(page.locator('#company-name-error')).toBeVisible();
+    await expect(page.locator('#company-address-error')).toBeVisible();
+    await expect(page.locator('#company-name')).toBeFocused();
+
     // The creator is an admin of the new company straight away, with no reload.
-    await page.click('button:has-text("Start setup")');
     await page.fill('#company-name', 'Signup Tester Co');
     await page.fill('#company-address', '1 Test Road');
     await page.fill('#company-gst', '27ABCDE1234F1Z0');
