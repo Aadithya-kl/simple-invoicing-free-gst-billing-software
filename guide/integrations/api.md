@@ -25,7 +25,7 @@ Only admins can manage keys, under **Settings → API Keys**.
 Send it as a bearer token:
 
 ```bash
-curl https://app.simpleinvoicings.com/api/invoices/ \
+curl https://app.gstbill.in/api/invoices/ \
   -H "Authorization: Bearer si_your_key_here"
 ```
 

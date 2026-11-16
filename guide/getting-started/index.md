@@ -7,11 +7,11 @@ description: "Set up Simple Invoicing, the free GST billing software, and send y
 
 This page takes you from a new account to your first invoice. It takes about ten minutes.
 
-Simple Invoicing runs in your browser on a laptop or phone, with nothing to install. These steps use the hosted version at [app.simpleinvoicings.com](https://app.simpleinvoicings.com). If you [run your own copy](../integrations/self-hosting), start at step 2.
+Simple Invoicing runs in your browser on a laptop or phone, with nothing to install. These steps use the hosted version at [app.gstbill.in](https://app.gstbill.in). If you [run your own copy](../integrations/self-hosting), start at step 2.
 
 ## 1. Create your account
 
-1. Open the [sign-up page](https://app.simpleinvoicings.com/register).
+1. Open the [sign-up page](https://app.gstbill.in/register).
 2. Enter your **Full name** and **Email**, then click **Create account**. Or click **Sign up with Google** and skip to step 2.
 3. Open the link we email you. It is valid for 24 hours.
 4. Check **Your name**, which is filled in from sign-up, and choose a **Password** of at least 8 characters. Common passwords are refused. Click **Confirm email and set password**.

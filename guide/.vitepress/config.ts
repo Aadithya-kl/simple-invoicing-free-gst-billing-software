@@ -1,6 +1,6 @@
 import { defineConfig, type HeadConfig } from 'vitepress';
 
-const SITE = 'https://guide.simpleinvoicings.com';
+const SITE = 'https://guide.gstbill.in';
 const SITE_NAME = 'Simple Invoicing Guide';
 const OG_IMAGE = `${SITE}/og.png`;
 
@@ -19,7 +19,7 @@ const SOFTWARE_JSON_LD = JSON.stringify({
   operatingSystem: 'Web, Windows, macOS, Linux, Android, iOS',
   description:
     'Free, open-source GST billing software for Indian small businesses: GST invoices, quotations, credit notes, e-way bills, GSTR-1 JSON export, inventory, ledgers and UPI payments.',
-  url: 'https://simpleinvoicings.com',
+  url: 'https://gstbill.in',
   downloadUrl: 'https://github.com/nikhilb2/simple-invoicing-free-gst-billing-software',
   license: 'https://opensource.org/licenses/MIT',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'INR', description: 'Free to self-host' },
@@ -66,7 +66,7 @@ export default defineConfig({
     nav: [
       { text: 'Quick start', link: '/getting-started/' },
       { text: 'Troubleshooting', link: '/help/faq' },
-      { text: 'Open the app', link: 'https://app.simpleinvoicings.com' },
+      { text: 'Open the app', link: 'https://app.gstbill.in' },
     ],
     socialLinks: [{ icon: 'github', link: 'https://github.com/nikhilb2/simple-invoicing-free-gst-billing-software' }],
     sidebar: [

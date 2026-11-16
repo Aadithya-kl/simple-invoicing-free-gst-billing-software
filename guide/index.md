@@ -14,7 +14,7 @@ hero:
       link: /getting-started/
     - theme: alt
       text: Open the app
-      link: https://app.simpleinvoicings.com
+      link: https://app.gstbill.in
 
 features:
   - title: Get started

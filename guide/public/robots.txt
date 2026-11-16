@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://guide.simpleinvoicings.com/sitemap.xml
+Sitemap: https://guide.gstbill.in/sitemap.xml

@@ -5,7 +5,7 @@ description: "Run your own copy of Simple Invoicing, the open-source GST billing
 
 # Run your own copy
 
-Simple Invoicing is open source under the MIT licence. If you would rather not run a server, use the [hosted version](https://app.simpleinvoicings.com/register). This page is for people comfortable with Docker and server administration.
+Simple Invoicing is open source under the MIT licence. If you would rather not run a server, use the [hosted version](https://app.gstbill.in/register). This page is for people comfortable with Docker and server administration.
 
 ## Try it locally
 
