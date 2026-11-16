@@ -13,10 +13,20 @@ Simple Invoicing has a built-in [MCP](https://modelcontextprotocol.io/) server, 
 - "How much stock do I have left of this product?"
 - "Create an invoice for Apex Retail for 5 keyboards."
 
+## Video: connect ChatGPT
+
+This 1.5-minute video (in Hinglish, with subtitles) shows the whole setup in ChatGPT, then asks about unpaid invoices and stock, and creates an invoice.
+
+<div class="video-embed">
+  <iframe src="https://www.youtube-nocookie.com/embed/5uzLToAxPwo" title="Connect ChatGPT to Simple Invoicing" loading="lazy" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+</div>
+
+[Watch on YouTube](https://youtu.be/5uzLToAxPwo)
+
 ## Connect
 
 1. In your assistant, add a custom connector with this URL:
-   - Hosted: `https://app.simpleinvoicings.com/mcp`
+   - Hosted: `https://app.gstbill.in/mcp`
    - Your own copy: `https://<your-host>/mcp`
 
    **Settings → Connected Apps** shows the exact URL for your server, with a **Copy** button.
@@ -26,6 +36,16 @@ Simple Invoicing has a built-in [MCP](https://modelcontextprotocol.io/) server, 
 5. Click **Approve access**.
 
 The request expires after about 10 minutes. If it does, start again from your assistant.
+
+### In ChatGPT
+
+You do not need Developer Mode.
+
+1. In the sidebar, click **Plugins**, then **Add** at the top right, then **Add custom MCP server**.
+2. Enter a **Name**, such as Simple Invoicing, and paste the URL into **Connection**. Leave **Authentication** set to **OAuth**.
+3. Tick **I understand and want to continue**, then click **Create as a plugin**.
+4. Click **Connect Simple Invoicing**, and approve access as described in steps 2–5 above.
+5. In any chat, type **@Simple Invoicing** and ask your question.
 
 ## What you are allowing
 
