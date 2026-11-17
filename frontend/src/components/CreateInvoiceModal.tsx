@@ -3,6 +3,7 @@ import { Lock } from 'lucide-react';
 import ConfirmDialog from './ConfirmDialog';
 import ModalCloseButton from './ModalCloseButton';
 import { useEscapeClose } from '../hooks/useEscapeClose';
+import { FieldError, LineFieldErrors, useFormFieldErrors } from '../hooks/useFormFieldErrors';
 import api, { getApiErrorMessage } from '../api/client';
 import type { InvoiceCreate, Invoice, Ledger, Product, TaxWithholdingSection } from '../types/api';
 import { useFY } from '../context/FYContext';
@@ -82,6 +83,7 @@ export default function CreateInvoiceModal({
   const [tcsForm, setTcsForm] = useState<TcsFormState>(EMPTY_TCS_FORM);
   const [tcsSections, setTcsSections] = useState<TaxWithholdingSection[] | undefined>(undefined);
   const [tcsNotice, setTcsNotice] = useState('');
+  const fieldErrors = useFormFieldErrors();
 
   useEffect(() => {
     let cancelled = false;
@@ -169,11 +171,6 @@ export default function CreateInvoiceModal({
     setItems((c) => c.map((i) => (i.id === id ? { ...i, serials } : i)));
   }
 
-  /* A tracked line with no serials is worth nothing and the backend refuses it,
-     so it blocks the save the way a missing ledger does. */
-  const hasEmptyTrackedLine = items.some(
-    (item) => products.find((p) => p.id === Number(item.productId))?.track_serials && item.serials.length === 0,
-  );
   const isDateOutsideFY =
     activeFY !== null &&
     invoiceDate !== '' &&
@@ -188,6 +185,17 @@ export default function CreateInvoiceModal({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setStockShortage(null);
+    /* A tracked line with no serials is worth nothing and the backend refuses it.
+       The serial box has no `required` of its own; the line already says what is missing. */
+    const missingSerials = items.find(
+      (item) => products.find((p) => p.id === Number(item.productId))?.track_serials && item.serials.length === 0,
+    );
+    if (missingSerials) {
+      const input = document.getElementById(`modal-inv-line-${missingSerials.id}-serial-input`);
+      input?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      input?.focus({ preventScroll: true });
+      return;
+    }
     try {
       setSubmitting(true);
       const payload: InvoiceCreate = {
@@ -283,7 +291,7 @@ export default function CreateInvoiceModal({
           {loading ? (
             <div className="empty-state">Loading form data...</div>
           ) : (
-            <form className="stack" onSubmit={(e) => void handleSubmit(e)}>
+            <form className="stack" onSubmit={(e) => void handleSubmit(e)} onInvalidCapture={fieldErrors.onInvalidCapture}>
               <div className="field-grid">
                 <div className="field">
                   <label htmlFor="modal-inv-voucher-type">Voucher type</label>
@@ -308,6 +316,7 @@ export default function CreateInvoiceModal({
                     required
                     disabled={!!preselectedLedgerId}
                   />
+                  <FieldError id="modal-inv-ledger" errors={fieldErrors.errors} />
                 </div>
 
                 {voucherType === 'sales' && companyGst?.trim() ? (
@@ -328,6 +337,7 @@ export default function CreateInvoiceModal({
                     onChange={(e) => setInvoiceDate(e.target.value)}
                     required
                   />
+                  <FieldError id="modal-inv-date" errors={fieldErrors.errors} />
                   {isDateOutsideFY && activeFY ? (
                     <p className="field-warning">
                       ⚠️ This date is outside the active financial year ({activeFY.label}). The invoice will still be created.
@@ -515,6 +525,13 @@ export default function CreateInvoiceModal({
                         </div>
                       </div>
                       <button type="button" className="button button--danger" onClick={() => removeItem(item.id)} title={`Remove line item ${index + 1}`} aria-label={`Remove line item ${index + 1}`}>Remove</button>
+                      <LineFieldErrors
+                        errors={fieldErrors.errors}
+                        fields={[
+                          { id: `modal-inv-product-${item.id}`, label: 'Product' },
+                          { id: `modal-inv-qty-${item.id}`, label: 'Qty' },
+                        ]}
+                      />
                         {tracked ? (
                           <div className="field field--full serial-line">
                             <SerialChips
@@ -566,7 +583,7 @@ export default function CreateInvoiceModal({
                   Add line item
                 </button>
                 <button type="button" className="button button--secondary" onClick={requestClose} title="Cancel invoice creation" aria-label="Cancel invoice creation">Cancel</button>
-                <button className="button button--primary" disabled={submitting || products.length === 0 || !selectedLedgerId || hasEmptyTrackedLine} title="Create invoice" aria-label="Create invoice">
+                <button className="button button--primary" disabled={submitting} title="Create invoice" aria-label="Create invoice">
                   {submitting ? 'Creating invoice...' : 'Create invoice'}
                 </button>
               </div>

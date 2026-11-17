@@ -51,6 +51,7 @@ import SerialChips from './components/SerialChips';
 import SerialPickerModal from './components/SerialPickerModal';
 import StockUpdateModal from './components/StockUpdateModal';
 import ReceiptModal from '../../components/ReceiptModal';
+import { FieldError, LineFieldErrors, useFormFieldErrors } from '../../hooks/useFormFieldErrors';
 import { createItem, type InvoiceFormItem } from './types';
 
 export default function InvoicesPage() {
@@ -148,6 +149,8 @@ export default function InvoicesPage() {
   const showCancelled = false;
   const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  /* The save buttons stay enabled; a click on one marks what is missing. */
+  const fieldErrors = useFormFieldErrors();
   const [error, setError] = useState('');
   /* Adding stock from the "not enough stock" notice is the answer to that error,
      so it should not sit beside the confirmation. */
@@ -1512,7 +1515,7 @@ export default function InvoicesPage() {
             </p>
           ) : null}
 
-          <form className="stack" onSubmit={handleSubmitInvoice}>
+          <form className="stack" onSubmit={handleSubmitInvoice} onInvalidCapture={fieldErrors.onInvalidCapture}>
             <div className="field-grid">
               <div className="field">
                 <label htmlFor="invoice-voucher-type">Voucher type</label>
@@ -1551,6 +1554,7 @@ export default function InvoicesPage() {
                   onChange={setSelectedLedgerId}
                   required
                 />
+                <FieldError id="invoice-ledger" errors={fieldErrors.errors} />
               </div>
 
               {voucherType === 'sales' && company?.gst?.trim() ? (
@@ -1572,6 +1576,7 @@ export default function InvoicesPage() {
                   onChange={(event) => changeDocumentDate(event.target.value)}
                   required
                 />
+                <FieldError id="invoice-date" errors={fieldErrors.errors} />
                 {activeFY !== null &&
                   invoiceDate !== '' &&
                   (invoiceDate < activeFY.start_date || invoiceDate > activeFY.end_date) ? (
@@ -1936,6 +1941,7 @@ export default function InvoicesPage() {
                     placeholder="0.00"
                     required
                   />
+                  <FieldError id="payment-amount" errors={fieldErrors.errors} />
                 </div>
               </div>
             ) : null}
@@ -2119,6 +2125,13 @@ export default function InvoicesPage() {
                       >
                         <Trash2 size={15} />
                       </button>
+                      <LineFieldErrors
+                        errors={fieldErrors.errors}
+                        fields={[
+                          { id: `invoice-product-${item.id}`, label: 'Product' },
+                          { id: `invoice-quantity-${item.id}`, label: 'Qty' },
+                        ]}
+                      />
                       {tracked ? (
                         <div className="field field--full serial-line">
                           <SerialChips
@@ -2224,19 +2237,19 @@ export default function InvoicesPage() {
                 </button>
               ) : null}
               {voucherType === 'payment' ? (
-                <button className="button button--primary" disabled={submitting || !selectedLedgerId || !paymentAmount} title="Create payment voucher" aria-label="Create payment voucher">
+                <button className="button button--primary" disabled={submitting} title="Create payment voucher" aria-label="Create payment voucher">
                   {submitting ? 'Creating payment...' : 'Create payment voucher'}
                 </button>
               ) : voucherType === 'receipt' ? (
-                <button className="button button--primary" disabled={!selectedLedgerId} title="Record receipt" aria-label="Record receipt">
+                <button className="button button--primary" title="Record receipt" aria-label="Record receipt">
                   Record receipt
                 </button>
               ) : isQuote ? (
-                <button className="button button--primary" disabled={submitting || products.length === 0 || !selectedLedgerId}>
+                <button className="button button--primary" disabled={submitting}>
                   {submitting ? 'Saving...' : `${editingQuotation ? 'Update' : 'Create'} ${documentName}`}
                 </button>
               ) : (
-                <button data-tour="create-invoice" className="button button--primary" disabled={submitting || products.length === 0 || !selectedLedgerId} title={!selectedLedgerId ? 'Choose who you are billing first' : editingInvoiceId ? 'Update invoice' : 'Create invoice'} aria-label={editingInvoiceId ? 'Update invoice' : 'Create invoice'}>
+                <button data-tour="create-invoice" className="button button--primary" disabled={submitting} title={editingInvoiceId ? 'Update invoice' : 'Create invoice'} aria-label={editingInvoiceId ? 'Update invoice' : 'Create invoice'}>
                   {submitting ? (editingInvoiceId ? 'Updating invoice...' : 'Creating invoice...') : editingInvoiceId ? 'Update invoice' : 'Create invoice'}
                 </button>
               )}

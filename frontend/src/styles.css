@@ -831,6 +831,36 @@ textarea {
   overflow-wrap: anywhere;
 }
 
+.field-error--block {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.82rem;
+}
+
+/* An invoice line's messages, as their own row under the line's fields. */
+.line-item__errors {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: -4px;
+}
+
+.line-item__errors .field-error--block {
+  margin-top: 0;
+}
+
+/* A field that stopped a save. See useFormFieldErrors. */
+.input[aria-invalid='true'],
+.select[aria-invalid='true'],
+.textarea[aria-invalid='true'],
+.input[aria-invalid='true']:focus,
+.select[aria-invalid='true']:focus,
+.textarea[aria-invalid='true']:focus {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px rgb(var(--rgb-danger) / 0.15);
+}
+
 .ledger-contact-link {
   color: var(--accent);
   text-decoration: underline;

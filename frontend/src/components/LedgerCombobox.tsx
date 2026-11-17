@@ -51,6 +51,12 @@ export default function LedgerCombobox({ id, ledgers, value, onChange, onClear, 
     if (l) setQuery(formatLedgerLabel(l));
   }, [value, ledgers]);
 
+  // Typed text is not a selection, so `required` alone would pass with a
+  // half-typed name and no ledger. Mirrors ProductCombobox.
+  useEffect(() => {
+    inputRef.current?.setCustomValidity(required && !value ? 'Pick a ledger from the list.' : '');
+  }, [required, value]);
+
   // Server results win when present. Callers hand us only the first page of
   // ledgers, so on a large book the one being searched for is very likely not
   // in that slice at all — filtering the prop alone would report "no match" for
