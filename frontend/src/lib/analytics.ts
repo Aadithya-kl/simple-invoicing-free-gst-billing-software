@@ -93,6 +93,19 @@ export function getSessionId(): string | null {
 }
 
 /**
+ * The id PostHog knows this browser by: the operator's email once identified,
+ * an anonymous id before that. For the backend to key an event to a visitor
+ * who is not signed in. Null when analytics is off.
+ */
+export function getDistinctId(): string | null {
+  if (!ready) {
+    return null;
+  }
+
+  return posthog.get_distinct_id() || null;
+}
+
+/**
  * Binds the recording to a known operator. Called on login, where the email is
  * the stable identifier the backend already keys accounts by -- the two sides
  * must agree, or the replay and the events it produced land on two different

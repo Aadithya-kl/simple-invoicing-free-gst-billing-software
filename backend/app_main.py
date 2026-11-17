@@ -20,6 +20,7 @@ from src.mcp_server import register_mcp
 from src.api.routes import tax_withholding as tax_withholding_routes
 from src.api.routes import tds as tds_routes
 from src.api.routes import tcs_reports as tcs_reports_routes
+from src.api.routes import support as support_routes
 from src.services.inventory_service import InsufficientStockError
 from src.core.analytics import (
     bind_request,
@@ -343,6 +344,7 @@ app.include_router(marketplace_routes.router, prefix="/api/marketplace", tags=["
 app.include_router(serials_routes.router, prefix="/api/serials", tags=["serials"])
 app.include_router(share_routes.router, prefix="/api/share", tags=["share"])
 app.include_router(eway_bill_routes.router, prefix="/api", tags=["eway-bill"])
+app.include_router(support_routes.router, prefix="/api/support", tags=["support"])
 
 # Public share pages. No prefix: the URL that goes into a WhatsApp message is
 # https://<tenant-host>/s/<token>, and it has to be short and typo-proof.

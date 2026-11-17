@@ -6,6 +6,7 @@ import App from './App';
 import { queryClient } from './lib/queryClient';
 import { identifyUser, initAnalytics } from './lib/analytics';
 import { scrubUrlSecrets } from './lib/urlSecrets';
+import { captureUtm } from './lib/utm';
 import { isNativeApp } from './lib/nativeBridge';
 import { useAuthStore } from './store/useAuthStore';
 import { initThemeListener } from './store/useThemeStore';
@@ -14,6 +15,10 @@ import './styles.css';
 // Before the recording starts, so a verification token or OAuth code in the
 // address bar never reaches a replay.
 scrubUrlSecrets();
+
+// Before the router redirects and drops the query string. The backend attaches
+// these to events the browser reports, such as a WhatsApp support click.
+captureUtm();
 
 // Starts the session recording. No React provider wraps the tree any more: the
 // app captures no events in the browser, so nothing needs the PostHog context,

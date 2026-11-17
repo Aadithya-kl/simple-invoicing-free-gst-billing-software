@@ -1,12 +1,30 @@
+import api from '../api/client';
+import { getDistinctId } from '../lib/analytics';
+import { getStoredUtm } from '../lib/utm';
 import { buildWhatsAppUrl } from '../utils/phone';
 
 /** The support line, as wa.me wants it: country code and digits, no plus. */
 export const SUPPORT_WHATSAPP_NUMBER = '919871052105';
 
 /**
+ * Tells the backend about the click so it can capture `support_whatsapp_clicked`
+ * with the visitor's UTM tags. Fire and forget: the link opens in a new tab
+ * whatever happens here, and a failed report is not the visitor's problem.
+ */
+export function reportWhatsAppClick() {
+  api
+    .post('/support/whatsapp-click', {
+      utm: getStoredUtm(),
+      anonymous_id: getDistinctId(),
+      path: window.location.pathname,
+    })
+    .catch(() => {});
+}
+
+/**
  * A floating button, bottom right on every screen, that opens a WhatsApp chat
- * with support. A plain link: wa.me hands off to the app on a phone and to
- * WhatsApp Web on a desktop, so there is nothing to load or track here.
+ * with support. wa.me hands off to the app on a phone and to WhatsApp Web on a
+ * desktop.
  */
 export default function WhatsAppSupportBubble() {
   return (
@@ -15,6 +33,7 @@ export default function WhatsAppSupportBubble() {
       href={buildWhatsAppUrl(SUPPORT_WHATSAPP_NUMBER, '')}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={reportWhatsAppClick}
       aria-label="Chat with support on WhatsApp"
       title="Chat with support on WhatsApp"
     >
