@@ -8986,3 +8986,47 @@ a.ledger-chip:focus-visible {
 .company-setup-first {
   max-width: 640px;
 }
+
+/* Floating WhatsApp support link, bottom right on every screen. Below the
+   sidebar, modals and the walkthrough card, so it never covers a dialog's
+   own buttons. */
+.whatsapp-bubble {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 250;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #25d366;
+  color: #fff;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.22);
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.whatsapp-bubble:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgb(0 0 0 / 0.28);
+}
+
+.whatsapp-bubble:focus-visible {
+  outline: 3px solid rgb(var(--rgb-accent));
+  outline-offset: 3px;
+}
+
+@media (max-width: 640px) {
+  .whatsapp-bubble {
+    right: 16px;
+    bottom: 16px;
+    width: 52px;
+    height: 52px;
+  }
+}
+
+@media print {
+  .whatsapp-bubble {
+    display: none;
+  }
+}
