@@ -1,7 +1,7 @@
 import { buildWhatsAppUrl } from '../utils/phone';
 
 /** The support line, as wa.me wants it: country code and digits, no plus. */
-export const SUPPORT_WHATSAPP_NUMBER = '919871052015';
+export const SUPPORT_WHATSAPP_NUMBER = '919871052105';
 
 /**
  * A floating button, bottom right on every screen, that opens a WhatsApp chat
