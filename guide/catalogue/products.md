@@ -17,8 +17,8 @@ Everyone can view the catalogue. Only admins and managers can add, change or del
 
    | Field | What to enter |
    |---|---|
-   | **SKU** | Your own item code. Required, unique within the company, and saved in capitals. |
    | **Product name** | Required. This is what appears on invoices. |
+   | **SKU** | Your own item code. Optional: leave it blank and one is made from the name, for example **Widget Pro 500ml** becomes WIDGET-PRO-500ML. Unique within the company, and saved in capitals. |
    | **Selling price** | Required. Zero or more. |
    | **Purchase price** | Optional. Analytics uses it to work out cost and profit. |
    | **GST rate** | Required. Choose from the list, or **Other rate…** for anything else from 0 to 100. Choose **0% (no GST)** only for items that are exempt or nil-rated. |
@@ -26,6 +26,8 @@ Everyone can view the catalogue. Only admins and managers can add, change or del
    | **Unit** | Pieces, Kg, g, m, l, Ounce, or **Custom...** for your own, such as Dozen. |
    | **Reorder level** | Stock at or below this is flagged as low. Leave at 0 to never flag. |
    | **Description** | Optional. |
+
+   **Purchase price**, **Reorder level**, **Description** and the tracking options below sit under **More options**. Tick it to show them. The form remembers whether you left it open, and the options you used on your last new product stay on show even when it is closed. A product you edit always shows the options it uses.
 
 3. Under **How this product is tracked**, tick what applies:
    - **Maintain stock for this product**: turn this off for services and anything you do not count. There is no separate "service" type.

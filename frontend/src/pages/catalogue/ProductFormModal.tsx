@@ -15,6 +15,15 @@ import {
   plainProductError,
   startsWithNoStock,
 } from './productFormRules';
+import {
+  ADVANCED_FIELDS,
+  ADVANCED_FIELD_LABELS,
+  type AdvancedField,
+  isAdvancedFieldVisible,
+  readProductFormPrefs,
+  updateProductFormPrefs,
+  usedAdvancedFields,
+} from './productFormPrefs';
 
 const UNIT_OPTIONS = ['Pieces', 'Kg', 'g', 'm', 'l', 'Ounce'];
 const CUSTOM_UNIT_VALUE = '__custom__';
@@ -159,6 +168,7 @@ export default function ProductFormModal({
   );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [prefs, setPrefs] = useState(readProductFormPrefs);
   const firstFieldRef = useRef<HTMLInputElement | null>(null);
 
   useEscapeClose(onCancel);
@@ -186,6 +196,15 @@ export default function ProductFormModal({
 
   const openingQuantity = form.track_serials ? form.serial_numbers.length : Number(form.initial_quantity || 0);
   const noOpeningStock = !isEdit && startsWithNoStock(form.maintain_inventory, openingQuantity);
+
+  const shows = (field: AdvancedField) => isAdvancedFieldVisible(field, form, prefs);
+  const hiddenAdvanced = ADVANCED_FIELDS.filter((field) => !shows(field));
+  const showsBehaviour = (['maintain_inventory', 'allow_decimal', 'track_serials', 'is_producable'] as const).some(shows);
+
+  function toggleAdvanced(open: boolean) {
+    setPrefs((current) => ({ ...current, showAdvanced: open }));
+    updateProductFormPrefs({ showAdvanced: open });
+  }
 
   const unitIsCustom = !UNIT_OPTIONS.includes(form.unit) || form.unit === CUSTOM_UNIT_VALUE;
   const resolvedUnit = unitIsCustom ? customUnit.trim() : form.unit;
@@ -221,7 +240,6 @@ export default function ProductFormModal({
 
   /** Everything the server would reject, said inline before a round trip. */
   function validate(): string {
-    if (!form.sku.trim()) return 'Enter an item code (SKU) for this product.';
     if (!form.name.trim()) return 'Product name is required.';
     if (form.price === '' || Number.isNaN(Number(form.price))) return 'Enter a selling price.';
     if (Number(form.price) < 0) return 'Selling price cannot be negative.';
@@ -277,16 +295,20 @@ export default function ProductFormModal({
           purchase_price: form.purchase_price === '' ? 0 : Number(form.purchase_price),
           reorder_level: form.reorder_level === '' ? 0 : Number(form.reorder_level),
         });
-        onSaved(savedMessage(`${payload.name} updated.`, updated.data));
+        const madeCode = payload.sku ? '' : ` Item code: ${updated.data.sku}.`;
+        onSaved(savedMessage(`${payload.name} updated.${madeCode}`, updated.data));
       } else {
         const created = await api.post<Product>('/products/', payload);
+        // Only a new product records habits: editing one reflects that product.
+        updateProductFormPrefs({ used: usedAdvancedFields(form) });
         if (form.purchase_price !== '' || form.reorder_level !== '0') {
           await api.put(`/products/${created.data.id}/with-inventory`, {
             purchase_price: form.purchase_price === '' ? 0 : Number(form.purchase_price),
             reorder_level: form.reorder_level === '' ? 0 : Number(form.reorder_level),
           });
         }
-        onSaved(savedMessage(`${payload.name} created.`, created.data));
+        const madeCode = payload.sku ? '' : ` Item code: ${created.data.sku}.`;
+        onSaved(savedMessage(`${payload.name} created.${madeCode}`, created.data));
       }
     } catch (err) {
       setError(
@@ -323,35 +345,34 @@ export default function ProductFormModal({
 
         <form className="stack" onSubmit={handleSubmit}>
           <div className="field-grid">
-            <label className="field" htmlFor="product-sku">
-              <span>
-                Item code (SKU) <RequiredMark />
-              </span>
-              <input
-                id="product-sku"
-                ref={firstFieldRef}
-                className="input"
-                value={form.sku}
-                onChange={(e) => update('sku', e.target.value)}
-                placeholder="WID-001"
-                aria-describedby="product-sku-hint"
-                required
-              />
-              <p className="field-hint" id="product-sku-hint">Your own code for this item. Each product needs a different one.</p>
-            </label>
-
             <label className="field" htmlFor="product-name">
               <span>
                 Product name <RequiredMark />
               </span>
               <input
                 id="product-name"
+                ref={firstFieldRef}
                 className="input"
                 value={form.name}
                 onChange={(e) => update('name', e.target.value)}
                 placeholder="Widget A"
                 required
               />
+            </label>
+
+            <label className="field" htmlFor="product-sku">
+              <span>Item code (SKU) (optional)</span>
+              <input
+                id="product-sku"
+                className="input"
+                value={form.sku}
+                onChange={(e) => update('sku', e.target.value)}
+                placeholder="Made from the name"
+                aria-describedby="product-sku-hint"
+              />
+              <p className="field-hint" id="product-sku-hint">
+                Your own code for this item. Leave it blank and we make one from the name, such as WIDGET-A.
+              </p>
             </label>
 
             <label className="field" htmlFor="product-price">
@@ -367,19 +388,6 @@ export default function ProductFormModal({
                 value={form.price}
                 onChange={(e) => update('price', e.target.value)}
                 required
-              />
-            </label>
-
-            <label className="field" htmlFor="product-purchase-price">
-              <span>Purchase price (₹)</span>
-              <input
-                id="product-purchase-price"
-                className="input"
-                type="number"
-                step="0.01"
-                min="0"
-                value={form.purchase_price}
-                onChange={(e) => update('purchase_price', e.target.value)}
               />
             </label>
 
@@ -443,127 +451,6 @@ export default function ProductFormModal({
                 />
               </label>
             ) : null}
-
-            <label className="field" htmlFor="product-reorder">
-              <span>Reorder level</span>
-              <input
-                id="product-reorder"
-                className="input"
-                type="number"
-                step="0.001"
-                min="0"
-                value={form.reorder_level}
-                onChange={(e) => update('reorder_level', e.target.value)}
-              />
-              <p className="field-hint">
-                Stock at or below this flags as low. Leave at 0 to never flag.
-              </p>
-            </label>
-
-            <label className="field field--full" htmlFor="product-description">
-              <span>Description</span>
-              <textarea
-                id="product-description"
-                className="textarea"
-                rows={2}
-                value={form.description}
-                onChange={(e) => update('description', e.target.value)}
-              />
-            </label>
-          </div>
-
-          <div className="form-section">
-            <div className="form-section__header">
-              <div>
-                <p className="form-section__eyebrow">Behaviour</p>
-                <h3 className="form-section__title">How this product is tracked</h3>
-              </div>
-            </div>
-
-            <div className="stack">
-              <label className="inline-check">
-                <input
-                  type="checkbox"
-                  checked={form.maintain_inventory}
-                  disabled={form.track_serials}
-                  onChange={(e) => update('maintain_inventory', e.target.checked)}
-                />
-                <span>Keep count of stock for this product</span>
-              </label>
-              <p className="field-hint">
-                {form.track_serials
-                  ? 'Required while serial tracking is on.'
-                  : 'Turn off for services and anything you do not count. If it is on, you can only sell what you have in stock.'}
-              </p>
-
-              <label className="inline-check">
-                <input
-                  type="checkbox"
-                  checked={form.allow_decimal}
-                  disabled={form.track_serials}
-                  onChange={(e) => update('allow_decimal', e.target.checked)}
-                />
-                <span>Allow fractional quantities</span>
-              </label>
-              <p className="field-hint">
-                {form.track_serials
-                  ? 'Unavailable: a serialised unit cannot be split.'
-                  : 'For weights and lengths, e.g. 2.5 Kg.'}
-              </p>
-
-              <label className="inline-check">
-                <input
-                  type="checkbox"
-                  checked={form.track_serials}
-                  onChange={(e) => setTrackSerials(e.target.checked)}
-                />
-                <span>Track individual serial numbers / IMEIs</span>
-              </label>
-              <p className="field-hint">
-                Every unit is scanned in and out by its own identifier.
-              </p>
-
-              <label className="inline-check">
-                <input
-                  type="checkbox"
-                  checked={form.is_producable}
-                  onChange={(e) => update('is_producable', e.target.checked)}
-                />
-                <span>This product is manufactured in-house</span>
-              </label>
-              <p className="field-hint">Producing it consumes its bill of materials.</p>
-
-              {form.is_producable ? (
-                <>
-                  <label className="field" htmlFor="product-production-cost">
-                    <span>Production cost</span>
-                    <input
-                      id="product-production-cost"
-                      className="input"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={form.production_cost}
-                      onChange={(e) => update('production_cost', e.target.value)}
-                    />
-                  </label>
-                  {isEdit && row ? (
-                    <button
-                      type="button"
-                      className="button button--ghost button--small"
-                      onClick={() => onConfigureBom(row.id, row.name)}
-                    >
-                      <Settings2 size={15} aria-hidden="true" />
-                      Configure bill of materials
-                    </button>
-                  ) : (
-                    <p className="field-hint">
-                      Save the product first, then set its bill of materials from the row menu.
-                    </p>
-                  )}
-                </>
-              ) : null}
-            </div>
           </div>
 
           {!isEdit ? (
@@ -618,6 +505,183 @@ export default function ProductFormModal({
                   ) : null}
                 </div>
               ) : null}
+            </div>
+          ) : null}
+
+          {prefs.showAdvanced || hiddenAdvanced.length > 0 ? (
+            <label className="form-advanced-toggle" htmlFor="product-more-options">
+              <input
+                id="product-more-options"
+                type="checkbox"
+                checked={prefs.showAdvanced}
+                onChange={(event) => toggleAdvanced(event.target.checked)}
+              />
+              <span className="form-advanced-toggle__label">More options</span>
+              {hiddenAdvanced.length > 0 ? (
+                <span className="form-advanced-toggle__hint">
+                  {hiddenAdvanced.map((field) => ADVANCED_FIELD_LABELS[field]).join(', ')}
+                </span>
+              ) : null}
+            </label>
+          ) : null}
+
+          {shows('purchase_price') || shows('reorder_level') || shows('description') ? (
+            <div className="field-grid">
+              {shows('purchase_price') ? (
+                <label className="field" htmlFor="product-purchase-price">
+                  <span>Purchase price (₹)</span>
+                  <input
+                    id="product-purchase-price"
+                    className="input"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={form.purchase_price}
+                    onChange={(e) => update('purchase_price', e.target.value)}
+                  />
+                </label>
+              ) : null}
+              {shows('reorder_level') ? (
+                <label className="field" htmlFor="product-reorder">
+                  <span>Reorder level</span>
+                  <input
+                    id="product-reorder"
+                    className="input"
+                    type="number"
+                    step="0.001"
+                    min="0"
+                    value={form.reorder_level}
+                    onChange={(e) => update('reorder_level', e.target.value)}
+                  />
+                  <p className="field-hint">
+                    Stock at or below this flags as low. Leave at 0 to never flag.
+                  </p>
+                </label>
+              ) : null}
+              {shows('description') ? (
+                <label className="field field--full" htmlFor="product-description">
+                  <span>Description</span>
+                  <textarea
+                    id="product-description"
+                    className="textarea"
+                    rows={2}
+                    value={form.description}
+                    onChange={(e) => update('description', e.target.value)}
+                  />
+                </label>
+              ) : null}
+            </div>
+          ) : null}
+
+          {showsBehaviour ? (
+            <div className="form-section">
+              <div className="form-section__header">
+                <div>
+                  <p className="form-section__eyebrow">Behaviour</p>
+                  <h3 className="form-section__title">How this product is tracked</h3>
+                </div>
+              </div>
+
+              <div className="stack">
+                {shows('maintain_inventory') ? (
+                  <>
+                    <label className="inline-check">
+                      <input
+                        type="checkbox"
+                        checked={form.maintain_inventory}
+                        disabled={form.track_serials}
+                        onChange={(e) => update('maintain_inventory', e.target.checked)}
+                      />
+                      <span>Keep count of stock for this product</span>
+                    </label>
+                    <p className="field-hint">
+                      {form.track_serials
+                        ? 'Required while serial tracking is on.'
+                        : 'Turn off for services and anything you do not count. If it is on, you can only sell what you have in stock.'}
+                    </p>
+                  </>
+                ) : null}
+
+                {shows('allow_decimal') ? (
+                  <>
+                    <label className="inline-check">
+                      <input
+                        type="checkbox"
+                        checked={form.allow_decimal}
+                        disabled={form.track_serials}
+                        onChange={(e) => update('allow_decimal', e.target.checked)}
+                      />
+                      <span>Allow fractional quantities</span>
+                    </label>
+                    <p className="field-hint">
+                      {form.track_serials
+                        ? 'Unavailable: a serialised unit cannot be split.'
+                        : 'For weights and lengths, e.g. 2.5 Kg.'}
+                    </p>
+                  </>
+                ) : null}
+
+                {shows('track_serials') ? (
+                  <>
+                    <label className="inline-check">
+                      <input
+                        type="checkbox"
+                        checked={form.track_serials}
+                        onChange={(e) => setTrackSerials(e.target.checked)}
+                      />
+                      <span>Track individual serial numbers / IMEIs</span>
+                    </label>
+                    <p className="field-hint">
+                      Every unit is scanned in and out by its own identifier.
+                    </p>
+                  </>
+                ) : null}
+
+                {shows('is_producable') ? (
+                  <>
+                    <label className="inline-check">
+                      <input
+                        type="checkbox"
+                        checked={form.is_producable}
+                        onChange={(e) => update('is_producable', e.target.checked)}
+                      />
+                      <span>This product is manufactured in-house</span>
+                    </label>
+                    <p className="field-hint">Producing it consumes its bill of materials.</p>
+
+                    {form.is_producable ? (
+                      <>
+                        <label className="field" htmlFor="product-production-cost">
+                          <span>Production cost</span>
+                          <input
+                            id="product-production-cost"
+                            className="input"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={form.production_cost}
+                            onChange={(e) => update('production_cost', e.target.value)}
+                          />
+                        </label>
+                        {isEdit && row ? (
+                          <button
+                            type="button"
+                            className="button button--ghost button--small"
+                            onClick={() => onConfigureBom(row.id, row.name)}
+                          >
+                            <Settings2 size={15} aria-hidden="true" />
+                            Configure bill of materials
+                          </button>
+                        ) : (
+                          <p className="field-hint">
+                            Save the product first, then set its bill of materials from the row menu.
+                          </p>
+                        )}
+                      </>
+                    ) : null}
+                  </>
+                ) : null}
+              </div>
             </div>
           ) : null}
 

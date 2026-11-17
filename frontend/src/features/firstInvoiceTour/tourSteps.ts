@@ -108,7 +108,7 @@ const PRODUCT_FORM: Guide = {
     {
       selector: '#modal-product-sku',
       title: 'SKU',
-      body: 'A short code of your own for this product, such as BAG-01.',
+      body: 'Optional. Leave it blank and we make a code from the product name.',
     },
     {
       selector: '#modal-product-price',

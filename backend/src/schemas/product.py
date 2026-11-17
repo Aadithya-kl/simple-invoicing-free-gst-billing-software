@@ -7,7 +7,8 @@ from src.core.validation import hsn_sac_warning, normalize_hsn_sac
 
 
 class ProductCreate(BaseModel):
-    sku: str
+    # Optional: a blank code is made from the name by the route.
+    sku: Optional[str] = None
     name: str
     description: Optional[str] = None
     hsn_sac: Optional[str] = None
@@ -39,9 +40,16 @@ class ProductCreate(BaseModel):
             raise ValueError("Unit is required")
         return normalized
 
-    @field_validator("sku", "name")
+    @field_validator("sku")
     @classmethod
-    def validate_sku_and_name_not_blank(cls, value: str) -> str:
+    def normalize_blank_sku(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return value.strip() or None
+
+    @field_validator("name")
+    @classmethod
+    def validate_name_not_blank(cls, value: str) -> str:
         normalized = value.strip()
         if not normalized:
             raise ValueError("Value must not be blank")

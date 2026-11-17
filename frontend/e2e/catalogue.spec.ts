@@ -7,6 +7,7 @@ import {
   createProduct,
   catalogueRow,
   catalogueSearch,
+  showMoreProductOptions,
   adjustInventory,
 } from './fixtures';
 
@@ -169,6 +170,7 @@ test.describe('Catalogue', () => {
     await expect(modal.locator('#product-initial-qty')).toHaveCount(0);
 
     await modal.locator('#product-hsn').fill('8471');
+    await showMoreProductOptions(modal);
     await modal.locator('#product-purchase-price').fill('60');
     await modal.getByRole('button', { name: 'Save changes' }).click();
 
@@ -419,7 +421,7 @@ test.describe('Catalogue', () => {
     await expect(cta).toBeVisible();
     await cta.click();
     await expect(page.getByRole('dialog', { name: 'Add a product' })).toBeVisible();
-    await expect(page.locator('#product-sku')).toBeFocused();
+    await expect(page.locator('#product-name')).toBeFocused();
   });
 
   test('offers Try again when the catalogue fails to load', async ({ authedPage: page }) => {

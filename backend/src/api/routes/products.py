@@ -1,6 +1,7 @@
 import csv
 import io
 import math
+import unicodedata
 from datetime import datetime
 from typing import Optional
 
@@ -48,6 +49,40 @@ def _plural(count: int, noun: str) -> str:
     return f"{count} {noun}{'' if count == 1 else 's'}"
 
 
+SKU_FROM_NAME_MAX_LENGTH = 24
+
+
+def _sku_from_name(
+    db: Session, company_id: int, name: str, exclude_product_id: int | None = None
+) -> str:
+    """Make an item code from the product name, unique within the company.
+
+    "Widget Pro 500ml" becomes WIDGET-PRO-500ML; a taken code gets -2, -3, ...
+    Letters in any script are kept, so a Hindi name still gives a readable code.
+    """
+    # Combining marks count as letters: Hindi vowel signs are marks, not alnum.
+    words = "".join(
+        ch if ch.isalnum() or unicodedata.category(ch).startswith("M") else " "
+        for ch in name.upper()
+    ).split()
+    base = "-".join(words)[:SKU_FROM_NAME_MAX_LENGTH].strip("-") or "ITEM"
+
+    # base holds only letters, digits and "-", so it is safe inside LIKE.
+    query = db.query(Product.sku).filter(
+        Product.company_id == company_id,
+        or_(Product.sku == base, Product.sku.like(f"{base}-%")),
+    )
+    if exclude_product_id is not None:
+        query = query.filter(Product.id != exclude_product_id)
+    taken = {row[0] for row in query.all()}
+    if base not in taken:
+        return base
+    suffix = 2
+    while f"{base}-{suffix}" in taken:
+        suffix += 1
+    return f"{base}-{suffix}"
+
+
 @router.post("", response_model=ProductOut, include_in_schema=False)
 @router.post("/", response_model=ProductOut)
 def create_product(
@@ -59,10 +94,13 @@ def create_product(
     if not 0 <= payload.gst_rate <= 100:
         raise HTTPException(status_code=400, detail="GST rate must be between 0 and 100")
 
-    sku = payload.sku.strip().upper()
-    existing = db.query(Product).filter(Product.company_id == active_company.id, Product.sku == sku).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Product with this SKU already exists")
+    if payload.sku:
+        sku = payload.sku.upper()
+        existing = db.query(Product).filter(Product.company_id == active_company.id, Product.sku == sku).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Product with this SKU already exists")
+    else:
+        sku = _sku_from_name(db, active_company.id, payload.name)
 
     serial_codes = SerialManager.normalize_codes(payload.serial_numbers)
     allow_decimal = payload.allow_decimal
@@ -206,14 +244,17 @@ def update_product(
     if not product:
         raise HTTPException(status_code=404, detail=f"Product {product_id} not found")
 
-    sku = payload.sku.strip().upper()
-    sku_owner = db.query(Product).filter(
-        Product.company_id == active_company.id,
-        Product.sku == sku,
-        Product.id != product_id,
-    ).first()
-    if sku_owner:
-        raise HTTPException(status_code=400, detail="Product with this SKU already exists")
+    if payload.sku:
+        sku = payload.sku.upper()
+        sku_owner = db.query(Product).filter(
+            Product.company_id == active_company.id,
+            Product.sku == sku,
+            Product.id != product_id,
+        ).first()
+        if sku_owner:
+            raise HTTPException(status_code=400, detail="Product with this SKU already exists")
+    else:
+        sku = _sku_from_name(db, active_company.id, payload.name, exclude_product_id=product_id)
 
     product.sku = sku
     product.name = payload.name.strip()

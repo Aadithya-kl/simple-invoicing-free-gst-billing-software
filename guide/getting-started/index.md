@@ -42,7 +42,7 @@ The GSTIN decides how tax is split, so enter it carefully. See [Ledgers](../ledg
 ## 4. Add a product
 
 1. Go to **Catalogue → Products & Stock** and click **New product**.
-2. Enter the **SKU**, **Product name**, **Selling price**, **GST rate** and **HSN / SAC**.
+2. Enter the **Product name**, **Selling price**, **GST rate** and **HSN / SAC**. The **SKU** is optional. Leave it blank and one is made from the name.
 3. Enter how many you have now. For a service, untick **Maintain stock for this product**.
 4. Click **Create product**.
 

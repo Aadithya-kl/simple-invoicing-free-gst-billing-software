@@ -153,14 +153,13 @@ export default function ProductQuickCreateModal() {
             />
           </div>
           <div className="field">
-            <label htmlFor="modal-product-sku">SKU</label>
+            <label htmlFor="modal-product-sku">SKU (optional)</label>
             <input
               id="modal-product-sku"
               className="input"
               value={productForm.sku}
               onChange={(event) => setProductForm((current) => ({ ...current, sku: event.target.value }))}
-              placeholder="e.g., WP-001"
-              required
+              placeholder="Leave blank to make one from the name"
             />
           </div>
           <div className="field">

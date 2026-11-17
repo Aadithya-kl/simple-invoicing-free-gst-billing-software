@@ -308,7 +308,6 @@ def test_update_product_with_inventory_rejects_nan_gst_rate(client):
     {"initial_quantity": -1},
     {"production_cost": -1},
     {"name": "   "},
-    {"sku": "   "},
 ])
 def test_create_product_rejects_negative_values_and_blank_names(client, overrides):
     payload = {
@@ -322,6 +321,50 @@ def test_create_product_rejects_negative_values_and_blank_names(client, override
     response = client.post('/api/products/', json=payload)
 
     assert response.status_code == 422
+
+
+@pytest.mark.parametrize("sku", [None, "", "   "])
+def test_create_product_without_sku_makes_one_from_the_name(client, sku):
+    payload = {"name": "Widget Pro 500ml", "price": 10, "gst_rate": 18}
+    if sku is not None:
+        payload["sku"] = sku
+
+    response = client.post('/api/products/', json=payload)
+
+    assert response.status_code == 200, response.text
+    assert response.json()["sku"] == "WIDGET-PRO-500ML"
+
+
+def test_generated_sku_skips_codes_already_taken(client):
+    first = client.post('/api/products/', json={"name": "Blue Shirt", "price": 10, "gst_rate": 5})
+    second = client.post('/api/products/', json={"name": "blue  shirt!", "price": 10, "gst_rate": 5})
+    third = client.post('/api/products/', json={"name": "Blue Shirt", "price": 10, "gst_rate": 5})
+
+    assert [r.json()["sku"] for r in (first, second, third)] == ["BLUE-SHIRT", "BLUE-SHIRT-2", "BLUE-SHIRT-3"]
+
+
+def test_generated_sku_is_capped_and_keeps_non_latin_names(client):
+    long_name = client.post('/api/products/', json={
+        "name": "Extra Large Stainless Steel Water Bottle", "price": 10, "gst_rate": 18,
+    })
+    hindi = client.post('/api/products/', json={"name": "मसाला चाय", "price": 10, "gst_rate": 5})
+    symbols = client.post('/api/products/', json={"name": "***", "price": 10, "gst_rate": 5})
+
+    assert long_name.json()["sku"] == "EXTRA-LARGE-STAINLESS-ST"
+    assert hindi.json()["sku"] == "मसाला-चाय"
+    assert symbols.json()["sku"] == "ITEM"
+
+
+def test_update_with_blank_sku_makes_one_from_the_name(client):
+    created = client.post('/api/products/', json={"sku": "OLD1", "name": "Tea", "price": 10, "gst_rate": 5})
+    product_id = created.json()["id"]
+
+    response = client.put(f"/api/products/{product_id}", json={
+        "sku": "", "name": "Green Tea", "price": 10, "gst_rate": 5,
+    })
+
+    assert response.status_code == 200, response.text
+    assert response.json()["sku"] == "GREEN-TEA"
 
 
 def test_create_product_accepts_zero_price_and_zero_purchase_price(client):

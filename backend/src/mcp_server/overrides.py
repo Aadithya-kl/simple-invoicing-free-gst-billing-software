@@ -222,7 +222,7 @@ DESCRIPTION_OVERRIDES: dict[tuple[str, str], str] = {
     # products / inventory
     ("GET", "/api/products/"): "List products for the active company. Supports free-text `search` over name and SKU.",
     ("GET", "/api/products/with-inventory"): "List products joined with live stock levels, sortable and filterable by stock status.",
-    ("POST", "/api/products/"): "Create a product.",
+    ("POST", "/api/products/"): "Create a product. Leave `sku` out to have an item code made from the name.",
     ("PUT", "/api/products/{product_id}"): "Update a product's details.",
     ("DELETE", "/api/products/{product_id}"): "Delete a product.",
     ("GET", "/api/inventory/"): "Current stock on hand per product.",

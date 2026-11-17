@@ -1,4 +1,4 @@
-import { test as base, expect, Page } from '@playwright/test';
+import { test as base, expect, Locator, Page } from '@playwright/test';
 
 /** Default admin credentials – override via env vars if needed. */
 const ADMIN_EMAIL = (globalThis as any).process?.env?.E2E_ADMIN_EMAIL || 'admin@simple.dev';
@@ -46,7 +46,8 @@ export async function selectComboboxOption(page: Page, inputId: string, searchTe
  * /catalogue.
  */
 export type NewProduct = {
-  sku: string;
+  /** Left out, the app makes one from the name. */
+  sku?: string;
   name: string;
   price: string;
   gstRate?: string;
@@ -64,8 +65,8 @@ export async function createProduct(page: Page, product: NewProduct) {
   const modal = page.getByRole('dialog', { name: 'Add a product' });
   await expect(modal).toBeVisible({ timeout: Number((globalThis as any).process?.env?.E2E_EXPECT_TIMEOUT_MS || '5000') });
 
-  await modal.locator('#product-sku').fill(product.sku);
   await modal.locator('#product-name').fill(product.name);
+  if (product.sku !== undefined) await modal.locator('#product-sku').fill(product.sku);
   await modal.locator('#product-price').fill(product.price);
   // The rate is a choice the form insists on; a test that does not care takes 0%, as the old default did.
   const gstRate = product.gstRate ?? '0';
@@ -74,6 +75,9 @@ export async function createProduct(page: Page, product: NewProduct) {
   } else {
     await modal.locator('#product-gst').selectOption({ label: 'Other rate…' });
     await modal.locator('#product-gst-other').fill(gstRate);
+  }
+  if (product.purchasePrice !== undefined || product.reorderLevel !== undefined || product.description !== undefined) {
+    await showMoreProductOptions(modal);
   }
   if (product.purchasePrice !== undefined) {
     await modal.locator('#product-purchase-price').fill(product.purchasePrice);
@@ -94,6 +98,16 @@ export async function createProduct(page: Page, product: NewProduct) {
   // The modal closing is the signal the POST landed; the toast names the row.
   await expectSuccess(page, `${product.name} created.`);
   await expect(modal).toBeHidden({ timeout: Number((globalThis as any).process?.env?.E2E_EXPECT_TIMEOUT_MS || '5000') });
+}
+
+/**
+ * Opens the product form's "More options" if it is closed. Purchase price,
+ * reorder level, description and the tracking checkboxes live there, and the
+ * open state is remembered per browser, so it may already be open.
+ */
+export async function showMoreProductOptions(modal: Locator) {
+  const toggle = modal.locator('#product-more-options');
+  if ((await toggle.count()) && !(await toggle.isChecked())) await toggle.check();
 }
 
 /** The catalogue's search box, which drives `?q=` and so the visible rows. */

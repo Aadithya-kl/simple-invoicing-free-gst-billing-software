@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, test } from 'vitest';
+import { beforeEach, describe, expect, test } from 'vitest';
 import ProductFormModal from './ProductFormModal';
 import { HSN_ERROR, errorAfterHsnEdit } from './productFormRules';
 import type { CatalogueRow } from './types';
@@ -31,6 +31,28 @@ function row(overrides: Partial<CatalogueRow> = {}): CatalogueRow {
 
 const noop = () => {};
 
+/* No DOM here, so storage is an in-memory stand-in holding the form's prefs. */
+let store: Record<string, string> = {};
+Object.defineProperty(globalThis, 'localStorage', {
+  configurable: true,
+  value: {
+    getItem: (key: string) => (key in store ? store[key] : null),
+    setItem: (key: string, value: string) => {
+      store[key] = String(value);
+    },
+    removeItem: (key: string) => {
+      delete store[key];
+    },
+    clear: () => {
+      store = {};
+    },
+  },
+});
+
+function storePrefs(prefs: object) {
+  localStorage.setItem('product_form_prefs', JSON.stringify(prefs));
+}
+
 /* Vitest runs in node with no DOM here, so the form is read back from the
    server-rendered markup. */
 function render(props: { row?: CatalogueRow | null; template?: CatalogueRow | null }) {
@@ -51,6 +73,12 @@ function render(props: { row?: CatalogueRow | null; template?: CatalogueRow | nu
 }
 
 describe('ProductFormModal duplicate', () => {
+  // These read every field, so "More options" is left open as a user would.
+  beforeEach(() => {
+    localStorage.clear();
+    storePrefs({ showAdvanced: true, used: [] });
+  });
+
   test('opens as a new product prefilled with the attributes similar products share', () => {
     const { html, value, checkboxes } = render({ template: row() });
 
@@ -108,6 +136,15 @@ describe('ProductFormModal duplicate', () => {
     expect(create.value('product-name')).toBe('');
   });
 
+  test('the SKU is optional and comes after the product name', () => {
+    const { html } = render({});
+
+    expect(html).toContain('Item code (SKU) (optional)');
+    expect(html).toContain('make one from the name');
+    expect(html).not.toMatch(/<input[^>]*id="product-sku"[^>]*required/);
+    expect(html.indexOf('id="product-name"')).toBeLessThan(html.indexOf('id="product-sku"'));
+  });
+
   test('a new product starts with no GST rate chosen, and a 0% choice shows a note', () => {
     const create = render({});
     expect(create.html).toMatch(/<option value="" disabled="" selected="">Choose a rate<\/option>/);
@@ -144,5 +181,54 @@ describe('editing the HSN code', () => {
   test('leaves any other error on screen', () => {
     expect(errorAfterHsnEdit('Choose a GST rate.')).toBe('Choose a GST rate.');
     expect(errorAfterHsnEdit('')).toBe('');
+  });
+});
+
+describe('ProductFormModal more options', () => {
+  beforeEach(() => localStorage.clear());
+
+  test('a first product shows only the basics, with the rest behind More options', () => {
+    const { html, value } = render({});
+
+    for (const id of ['product-name', 'product-sku', 'product-price', 'product-hsn', 'product-initial-qty']) {
+      expect(value(id), id).toBeDefined();
+    }
+    expect(html).toContain('id="product-gst"');
+    expect(html).toContain('More options');
+    expect(html).toContain('purchase price, reorder level, description, stock counting');
+    expect(html).not.toContain('id="product-purchase-price"');
+    expect(html).not.toContain('id="product-reorder"');
+    expect(html).not.toContain('id="product-description"');
+    expect(html).not.toContain('How this product is tracked');
+    expect(html).not.toMatch(/<input id="product-more-options"[^>]*checked/);
+  });
+
+  test('left open last time, every option shows', () => {
+    storePrefs({ showAdvanced: true, used: [] });
+    const { html } = render({});
+
+    expect(html).toMatch(/<input id="product-more-options"[^>]*checked/);
+    expect(html).toContain('id="product-purchase-price"');
+    expect(html).toContain('Track individual serial numbers');
+  });
+
+  test('options used on the last product show even while closed', () => {
+    storePrefs({ showAdvanced: false, used: ['purchase_price', 'track_serials'] });
+    const { html } = render({});
+
+    expect(html).toContain('id="product-purchase-price"');
+    expect(html).toContain('Track individual serial numbers');
+    expect(html).not.toContain('id="product-reorder"');
+    expect(html).not.toContain('manufactured in-house');
+    expect(html).toContain('reorder level, description, stock counting, fractional quantities, manufacturing');
+  });
+
+  test('editing never hides a setting the product has', () => {
+    const { html, value } = render({ row: row({ track_serials: true, description: '', reorder_level: 0 }) });
+
+    expect(value('product-purchase-price')).toBe('180');
+    expect(html).toContain('Track individual serial numbers');
+    expect(html).not.toContain('id="product-reorder"');
+    expect(html).not.toContain('id="product-description"');
   });
 });
