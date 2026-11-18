@@ -14,12 +14,12 @@ type DuesAgeingStripProps = {
 
 /**
  * Pure tile rendering, kept separate from fetching so the figures can be
- * tested without a network round trip. The metric strip wraps, so the row
- * of tiles reflows on a narrow screen instead of overflowing.
+ * tested without a network round trip. The tiles sit in an auto-fit grid, so
+ * they share the card's width evenly and reflow on a narrow screen.
  */
 export function DuesAgeingTiles({ ageing, currencyCode }: { ageing: DuesAgeing; currencyCode: string }) {
   return (
-    <div className="metric-strip">
+    <div className="dues-ageing-tiles">
       {ageing.buckets.map((bucket) => (
         <Metric
           key={bucket.key}

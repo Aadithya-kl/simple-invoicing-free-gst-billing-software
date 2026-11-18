@@ -8736,9 +8736,32 @@ a.ledger-chip:focus-visible {
 .appearance-swatch__line--short {
   width: 55%;
 }
+/* The ageing tiles fill a card of their own, so unlike the toolbar's
+   .metric-strip they spread over the full width in equal tracks instead of
+   bunching up on the left. */
+.dues-ageing-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px 20px;
+  margin-top: 12px;
+}
+
+/* A tile beside a taller one (its figure wrapped) stretches to the row height;
+   without this its label and figure drift apart. */
+.dues-ageing-tiles .metric {
+  align-content: start;
+}
+
+/* The invoice count qualifies the amount; at the amount's weight it reads as a
+   second figure. */
+.dues-ageing-tiles .metric__value .muted-text {
+  font-size: 0.85em;
+  font-weight: 600;
+}
+
 .dues-ageing-note {
   font-size: 0.78rem;
-  margin-top: 10px;
+  margin: 14px 0 0;
 }
 /* ── GSTR-3B worksheet ──────────────────────────────────────────────────── */
 
