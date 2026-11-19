@@ -7,28 +7,30 @@ description: "Trade surplus stock with other businesses on Simple Invoicing: pub
 The Marketplace lets businesses running Simple Invoicing trade surplus stock with each other. It is optional, and everything else works without it.
 
 - **No money passes through it.** It matches orders. You and the other business settle payment and delivery directly.
+- **Anyone can look, only registered companies can trade.** Browse shows the default marketplace (marketplace.respawn.in) before you connect. To buy or sell, register your company.
 - **Sellers are not verified.** Every counterparty shows an **Unverified** badge because GSTINs are self-declared. Check who you are dealing with before you ship or pay.
 
 ## Who can do what
 
 | Action | Who |
 |---|---|
-| Browse listings and view orders | Anyone signed in |
+| Browse listings | Anyone signed in, even before the company registers |
+| View orders | Anyone signed in |
 | Publish listings, place and handle orders | Admins and managers |
 | Connect and change settings | Admins |
 
 ## Connect your company
 
-Your company needs a valid GSTIN on its [profile](../getting-started/company-setup), and you need the address of a marketplace.
+Your company needs a valid GSTIN on its [profile](../getting-started/company-setup). The **Marketplace URL** is already filled in with the default marketplace. Change it only if you want to use a different one.
 
 ![Marketplace settings](/screens/marketplace-settings.webp)
 
 1. Go to **Settings → Marketplace**.
-2. Enter the **Marketplace URL** and click **Test connection**. You see its name, whether new sellers need approval, how long unanswered orders last, and a link to its terms.
+2. Check the **Marketplace URL** and click **Test connection**. You see its name, whether new sellers need approval, how long unanswered orders last, and a link to its terms.
 3. Check the **Legal name** and **GSTIN**, which come from your company profile, and enter a **Contact email**.
 4. Click **Register with this marketplace**.
 
-If the status shows **Awaiting operator approval**, wait. Do not register again, because the app notices the approval on its next sync. A GSTIN can only be claimed once.
+If the status shows **Awaiting operator approval**, wait. You can browse in the meantime, but you cannot buy or sell yet. Do not register again, because the app notices the approval on its next sync. A GSTIN can only be claimed once.
 
 ### Choose how orders are handled
 
@@ -60,7 +62,7 @@ A withdrawn product cannot be published again. Use **Pause** if you may want to 
 ## Buy: place an order
 
 1. Go to **Marketplace → Browse**. Search, or use **Filters** for HSN, price, seller state and in-stock items. Prices are per unit and exclude tax.
-2. Click **Buy now**.
+2. Click **Buy now**. Until your company is registered and approved, a listing shows **Registered companies only** instead.
 3. Enter the quantity. The summary shows the taxable value, GST and **Total payable**.
 4. Click **Place order**.
 

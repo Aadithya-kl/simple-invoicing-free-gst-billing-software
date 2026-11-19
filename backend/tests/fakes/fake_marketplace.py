@@ -45,6 +45,8 @@ class MarketplaceHTTPError(Exception):
 class FakeMarketplace:
     def __init__(self, *, auto_approve: bool = True, order_ttl_hours: int = 168) -> None:
         self.auto_approve = auto_approve
+        self.anonymous_browses = 0
+        self.public_browse = True
         self.order_ttl_hours = order_ttl_hours
 
         self.sellers: dict[str, dict] = {}
@@ -381,13 +383,18 @@ class FakeMarketplace:
             exclude_own: bool = False,
             authorization: str | None = Header(default=None),
         ):
-            seller = fake._seller_for_key(authorization)
-            fake._require_active(seller)
+            # Public browse: no key means an anonymous, read-only caller. A key
+            # that IS sent must still belong to an active seller.
+            seller = None
+            if authorization is not None or not fake.public_browse:
+                seller = fake._seller_for_key(authorization)
+                fake._require_active(seller)
+            fake.anonymous_browses += seller is None
             items = []
             for listing in fake.listings.values():
                 if listing["status"] != "active":
                     continue
-                if exclude_own and listing["seller_id"] == seller["seller_id"]:
+                if exclude_own and seller and listing["seller_id"] == seller["seller_id"]:
                     continue
                 if q and q.lower() not in (listing["title"] or "").lower():
                     continue
@@ -396,7 +403,8 @@ class FakeMarketplace:
 
         @app.get("/v1/listings/{listing_id}")
         async def get_listing(listing_id: str, authorization: str | None = Header(default=None)):
-            fake._seller_for_key(authorization)
+            if authorization is not None:
+                fake._seller_for_key(authorization)
             listing = fake.listings.get(listing_id)
             if listing is None:
                 raise MarketplaceHTTPError(404, "listing_not_found")

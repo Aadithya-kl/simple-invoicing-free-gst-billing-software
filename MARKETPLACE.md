@@ -36,7 +36,7 @@ byte-identical in `simple_marketplace/MARKETPLACE.md` and
 
 | Header | Direction | Notes |
 |---|---|---|
-| `Authorization: Bearer mk_live_<64 hex>` | instance → central | Required on everything except `/meta`, `/health`, `/sellers/register`. |
+| `Authorization: Bearer mk_live_<64 hex>` | instance → central | Required on everything except `/meta`, `/health`, `/sellers/register` — and, while `/meta` reports `public_browse: true`, the read-only `GET /listings` and `GET /listings/{listing_id}`. |
 | `X-Marketplace-Client: respawn-invoicing/<version>` | instance → central | Required. Used for `min_client_version` enforcement. |
 | `X-Marketplace-Instance: <uuid>` | instance → central | Stable per install. A mismatch against the registered value is logged — it means the credential was copied to another machine. |
 | `Idempotency-Key: <uuid>` | instance → central | Required on `POST /orders`, `/orders/{id}/accept`, `/orders/{id}/posting`. The server returns the original response for a replayed key within 24 h. |
@@ -84,6 +84,7 @@ GET /v1/meta                                                      (no auth)
   "terms_url": "https://.../terms",
   "registration_open": true,
   "requires_approval": true,
+  "public_browse": true,
   "order_ttl_hours": 168,
   "event_retention_days": 90
 }
@@ -158,6 +159,14 @@ POST   /v1/listings/{listing_id}/report   { "reason": "...", "note": "..." }
 ```
 
 Browse across all instances:
+
+**Public browse.** While `/meta` reports `public_browse: true`, `GET /listings` and
+`GET /listings/{listing_id}` also answer callers that send **no** `Authorization` header, so an
+instance that has not registered (or is still `pending_approval`) can show the catalogue
+read-only. Anonymous callers see exactly what a trading seller sees, minus `exclude_own`. A
+caller that *does* send a key is held to the normal rules — a bad key is `401`, a seller that
+cannot trade is `403` — and is never silently downgraded to anonymous. Publishing, ordering and
+reporting always require an approved seller.
 
 ```http
 GET /v1/listings?q=&hsn_sac=&gst_rate=&min_price=&max_price=&seller_state_code=

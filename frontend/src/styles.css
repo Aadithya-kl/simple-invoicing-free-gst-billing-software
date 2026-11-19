@@ -5782,6 +5782,21 @@ a.invoice-row {
   color: var(--muted);
 }
 
+.marketplace-guest-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line-strong);
+  background: rgb(var(--rgb-accent) / 0.08);
+}
+
+.marketplace-guest-notice .section-copy {
+  margin: 0;
+  flex: 1 1 280px;
+}
+
 .marketplace-note--emphasis {
   padding: 10px 12px;
   border-radius: 12px;

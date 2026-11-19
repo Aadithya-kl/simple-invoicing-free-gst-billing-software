@@ -6,6 +6,7 @@ import ConfirmDialog from '../../components/ConfirmDialog';
 import StatusToasts from '../../components/StatusToasts';
 import {
   disconnectMarketplace,
+  fetchMarketplaceDefaults,
   fetchMarketplaceMeta,
   registerConnection,
   rotateCredential,
@@ -25,7 +26,8 @@ const STALE_SYNC_HOURS = 24;
 const STATUS_COPY: Record<MarketplaceConnectionStatus, { label: string; detail: string }> = {
   unregistered: {
     label: 'Not connected',
-    detail: 'Paste a marketplace URL below and register this company to start trading.',
+    detail:
+      'Anyone can browse the marketplace below, but only registered companies can buy and sell. Register this company to start trading.',
   },
   pending_approval: {
     label: 'Awaiting operator approval',
@@ -91,6 +93,19 @@ export default function MarketplaceSettingsPage() {
       contactPhone: current.contactPhone || companyQuery.data?.phone_number || '',
     }));
   }, [companyQuery.data]);
+
+  // Pre-fill the deployment's default marketplace for a company that has never
+  // pointed anywhere. A URL the user typed, or one already saved, wins.
+  const defaultsQuery = useQuery({
+    queryKey: marketplaceQueryKeys.defaults(),
+    queryFn: fetchMarketplaceDefaults,
+    staleTime: Infinity,
+  });
+  const defaultUrl = defaultsQuery.data?.base_url ?? '';
+  useEffect(() => {
+    if (!defaultUrl || connectionQuery.isLoading || connection?.base_url) return;
+    setBaseUrl((current) => current || defaultUrl);
+  }, [defaultUrl, connectionQuery.isLoading, connection?.base_url]);
 
   const metaQuery = useQuery({
     queryKey: marketplaceQueryKeys.meta(probedUrl),

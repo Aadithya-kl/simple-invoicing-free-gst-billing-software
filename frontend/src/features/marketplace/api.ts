@@ -8,6 +8,7 @@ import type {
   ListingUpdatePayload,
   MarketplaceConnection,
   MarketplaceConnectionSettings,
+  MarketplaceDefaults,
   MarketplaceListing,
   MarketplaceMeta,
   MarketplaceOrder,
@@ -21,6 +22,12 @@ import type {
 // ---------------------------------------------------------------------------
 // Connection
 // ---------------------------------------------------------------------------
+
+/** The marketplace this deployment points unregistered companies at, or null. */
+export async function fetchMarketplaceDefaults(): Promise<MarketplaceDefaults> {
+  const res = await api.get<MarketplaceDefaults>('/marketplace/defaults');
+  return res.data;
+}
 
 export async function fetchConnection(): Promise<MarketplaceConnection> {
   const res = await api.get<MarketplaceConnection>('/marketplace/connection');

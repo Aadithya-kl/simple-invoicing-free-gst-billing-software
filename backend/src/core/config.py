@@ -35,6 +35,11 @@ class Settings(BaseSettings):
     # silently return None forever.
     MARKETPLACE_ALLOW_INSECURE_URL: bool = False
     MARKETPLACE_HTTP_TIMEOUT_SECONDS: int = 15
+    # The marketplace every company sees before it registers anywhere: Browse
+    # shows its listings read-only, and Settings pre-fills it as the URL to
+    # register with. Buying and selling still need a registered, approved
+    # connection. Empty disables both — Browse then asks to connect first.
+    MARKETPLACE_DEFAULT_URL: str = "https://marketplace.respawn.in"
 
     # --- PostHog product analytics ---
     # Events are captured server-side; the browser only records replays. Leave the

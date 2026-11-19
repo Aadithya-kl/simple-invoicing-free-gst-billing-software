@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from src.api.deps import get_active_company, get_current_user, require_company_role, require_platform_admin
 from src.api.pagination import MAX_PAGE
 from src.core.analytics import distinct_id_for, track
+from src.core.config import settings
 from src.core.validation import normalize_gstin
 from src.db.session import get_db
 from src.models.company import CompanyProfile
@@ -36,6 +37,7 @@ from src.schemas.marketplace import (
     ListingCreateIn,
     ListingOut,
     ListingUpdateIn,
+    MarketplaceDefaultsOut,
     MarketplaceMetaOut,
     OrderCreateIn,
     OrderLinkProductIn,
@@ -90,6 +92,45 @@ def _require_connection(db: Session, company_id: int) -> MarketplaceConnection:
     return connection
 
 
+def _browse(db: Session, company_id: int, call):
+    """Run a read-only catalogue call, with this company's key when it has one.
+
+    A company with a key browses as itself, so the central server leaves its own
+    listings out. Every other company — never registered, or registered but not
+    approved — browses anonymously, which the central server answers read-only:
+    buying and selling still go through routes that need a connected seller.
+
+    The key is tried even while the local status says pending_approval, because
+    approval only reaches this instance on its next sync; a refusal (403 while
+    pending, 401 for a dead key) falls back to anonymous.
+    """
+    connection = _get_connection(db, company_id)
+    if connection is not None and connection.credential:
+        try:
+            with client_for_connection(connection) as client:
+                return call(client)
+        except MarketplaceAuthError:
+            pass
+        except MarketplaceError as exc:
+            raise _http(exc) from exc
+
+    base_url = (connection.base_url if connection else None) or settings.MARKETPLACE_DEFAULT_URL
+    if not base_url:
+        raise HTTPException(status_code=404, detail="No marketplace connection configured")
+    try:
+        with build_client(base_url) as client:
+            return call(client)
+    except MarketplaceAuthError as exc:
+        # Not a 401: that would send the browser off to refresh ITS session.
+        raise HTTPException(
+            status_code=403,
+            detail="This marketplace only shows listings to registered companies. "
+            "Register in Marketplace settings to browse.",
+        ) from exc
+    except MarketplaceError as exc:
+        raise _http(exc) from exc
+
+
 def _to_listing_out(listing: MarketplaceListing) -> ListingOut:
     return ListingOut.model_validate(listing)
 
@@ -106,6 +147,13 @@ def get_connection(
 ):
     connection = _get_connection(db, active_company.id)
     return ConnectionOut.model_validate(connection) if connection else None
+
+
+# Out of the schema so it is not an MCP tool: it only pre-fills a settings form.
+@router.get("/defaults", response_model=MarketplaceDefaultsOut, include_in_schema=False)
+def get_marketplace_defaults(_: User = Depends(get_current_user)):
+    """The default marketplace this deployment points unregistered companies at."""
+    return MarketplaceDefaultsOut(base_url=settings.MARKETPLACE_DEFAULT_URL or None)
 
 
 @router.get("/connection/meta", response_model=MarketplaceMetaOut)
@@ -271,24 +319,23 @@ def browse(
     _: User = Depends(get_current_user),
     active_company: CompanyProfile = Depends(get_active_company),
 ):
-    connection = _require_connection(db, active_company.id)
-    try:
-        with client_for_connection(connection) as client:
-            body = client.browse(
-                q=q,
-                hsn_sac=hsn_sac,
-                gst_rate=gst_rate,
-                min_price=min_price,
-                max_price=max_price,
-                seller_state_code=seller_state_code,
-                in_stock=in_stock,
-                exclude_own=True,
-                sort=sort,
-                cursor=cursor,
-                page_size=page_size,
-            )
-    except MarketplaceError as exc:
-        raise _http(exc) from exc
+    body = _browse(
+        db,
+        active_company.id,
+        lambda client: client.browse(
+            q=q,
+            hsn_sac=hsn_sac,
+            gst_rate=gst_rate,
+            min_price=min_price,
+            max_price=max_price,
+            seller_state_code=seller_state_code,
+            in_stock=in_stock,
+            exclude_own=True,
+            sort=sort,
+            cursor=cursor,
+            page_size=page_size,
+        ),
+    )
     return BrowseResultOut(**body)
 
 
@@ -299,12 +346,7 @@ def browse_detail(
     _: User = Depends(get_current_user),
     active_company: CompanyProfile = Depends(get_active_company),
 ):
-    connection = _require_connection(db, active_company.id)
-    try:
-        with client_for_connection(connection) as client:
-            return client.get_listing(listing_id)
-    except MarketplaceError as exc:
-        raise _http(exc) from exc
+    return _browse(db, active_company.id, lambda client: client.get_listing(listing_id))
 
 
 # ---------------------------------------------------------------------------

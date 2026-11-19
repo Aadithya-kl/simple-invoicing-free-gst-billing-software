@@ -46,8 +46,14 @@ class MarketplaceMetaOut(BaseModel):
     terms_url: str | None = None
     registration_open: bool = True
     requires_approval: bool = True
+    public_browse: bool = False
     order_ttl_hours: int | None = None
     event_retention_days: int | None = None
+
+
+class MarketplaceDefaultsOut(BaseModel):
+    # None when this deployment has no default marketplace configured.
+    base_url: str | None = None
 
 
 class ConnectionRegisterIn(BaseModel):

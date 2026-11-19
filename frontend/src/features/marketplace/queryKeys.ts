@@ -8,6 +8,7 @@ import type { CatalogFilters, OrderSide } from './types';
 export const marketplaceQueryKeys = {
   all: ['marketplace'] as const,
   connection: () => ['marketplace', 'connection'] as const,
+  defaults: () => ['marketplace', 'defaults'] as const,
   meta: (baseUrl: string) => ['marketplace', 'connection', 'meta', baseUrl] as const,
   catalog: (filters: CatalogFilters, cursor: string | null, pageSize: number) =>
     ['marketplace', 'catalog', 'list', filters, cursor ?? 'first', pageSize] as const,

@@ -24,6 +24,7 @@ from src.models.marketplace import (
 )
 from src.models.product import Product
 from src.models.user import User, UserRole
+from src.core.config import settings
 from src.services.marketplace import client as client_module
 from tests.fakes.fake_marketplace import FakeMarketplace
 
@@ -274,7 +275,6 @@ class TestConnectionRoutes:
     def test_routes_404_without_a_connection(self, client, db_session, fake):
         company = make_company(db_session, name="Acme", gst=GST_A)
         for method, path in [
-            ("get", "/api/marketplace/catalog"),
             ("post", "/api/marketplace/sync"),
             ("patch", "/api/marketplace/connection"),
         ]:
@@ -283,6 +283,107 @@ class TestConnectionRoutes:
             if method in ("post", "patch"):
                 kwargs["json"] = {}
             assert call(path, **kwargs).status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Default marketplace: read-only browse before registering
+# ---------------------------------------------------------------------------
+
+class TestDefaultMarketplace:
+    def _seed_listing(self, client, db_session):
+        seller = make_company(db_session, name="SellerCo", gst=GST_B)
+        client.post(
+            "/api/marketplace/connection",
+            json={"base_url": "http://marketplace.test"},
+            headers=headers_for(seller),
+        )
+        product = make_product(db_session, seller.id)
+        client.post(
+            "/api/marketplace/listings",
+            json={"product_id": product.id, "asking_price": 125.0},
+            headers=headers_for(seller),
+        )
+
+    def test_defaults_report_the_configured_url(self, client, monkeypatch):
+        monkeypatch.setattr(settings, "MARKETPLACE_DEFAULT_URL", "https://marketplace.respawn.in")
+        assert client.get("/api/marketplace/defaults").json() == {
+            "base_url": "https://marketplace.respawn.in"
+        }
+        monkeypatch.setattr(settings, "MARKETPLACE_DEFAULT_URL", "")
+        assert client.get("/api/marketplace/defaults").json() == {"base_url": None}
+
+    def test_an_unregistered_company_browses_anonymously(
+        self, client, db_session, fake, monkeypatch
+    ):
+        monkeypatch.setattr(settings, "MARKETPLACE_DEFAULT_URL", "https://marketplace.respawn.in")
+        self._seed_listing(client, db_session)
+        guest = make_company(db_session, name="GuestCo", gst=GST_A)
+
+        response = client.get("/api/marketplace/catalog", headers=headers_for(guest))
+        assert response.status_code == 200, response.text
+        items = response.json()["items"]
+        assert len(items) == 1
+        assert fake.anonymous_browses == 1
+
+        detail = client.get(
+            f"/api/marketplace/catalog/{items[0]['listing_id']}", headers=headers_for(guest)
+        )
+        assert detail.status_code == 200, detail.text
+
+    def test_an_unregistered_company_cannot_buy_or_sell(
+        self, client, db_session, fake, monkeypatch
+    ):
+        monkeypatch.setattr(settings, "MARKETPLACE_DEFAULT_URL", "https://marketplace.respawn.in")
+        self._seed_listing(client, db_session)
+        guest = make_company(db_session, name="GuestCo", gst=GST_A)
+        product = make_product(db_session, guest.id, sku="G1")
+        listing_id = next(iter(fake.listings))
+
+        assert client.post(
+            "/api/marketplace/orders",
+            json={"listing_id": listing_id, "quantity": 1},
+            headers=headers_for(guest),
+        ).status_code == 404
+        assert client.post(
+            "/api/marketplace/listings",
+            json={"product_id": product.id, "asking_price": 10.0},
+            headers=headers_for(guest),
+        ).status_code == 404
+
+    def test_a_pending_company_browses_anonymously(self, client, db_session, monkeypatch):
+        """The key is refused while pending, so Browse falls back to anonymous."""
+        pending_fake = FakeMarketplace(auto_approve=False)
+        client_module.set_transport_override(pending_fake.transport())
+        try:
+            company = make_company(db_session, name="PendingCo", gst=GST_A)
+            registered = client.post(
+                "/api/marketplace/connection",
+                json={"base_url": "http://marketplace.test"},
+                headers=headers_for(company),
+            )
+            assert registered.json()["status"] == "pending_approval"
+
+            response = client.get("/api/marketplace/catalog", headers=headers_for(company))
+            assert response.status_code == 200, response.text
+            assert pending_fake.anonymous_browses == 1
+        finally:
+            client_module.set_transport_override(None)
+
+    def test_a_marketplace_without_public_browse_is_a_403_not_a_401(
+        self, client, db_session, fake, monkeypatch
+    ):
+        """A 401 here would make the browser think its own session expired."""
+        monkeypatch.setattr(settings, "MARKETPLACE_DEFAULT_URL", "https://marketplace.respawn.in")
+        fake.public_browse = False
+        guest = make_company(db_session, name="GuestCo", gst=GST_A)
+        response = client.get("/api/marketplace/catalog", headers=headers_for(guest))
+        assert response.status_code == 403
+
+    def test_no_default_and_no_connection_404s(self, client, db_session, fake, monkeypatch):
+        monkeypatch.setattr(settings, "MARKETPLACE_DEFAULT_URL", "")
+        company = make_company(db_session, name="Acme", gst=GST_A)
+        response = client.get("/api/marketplace/catalog", headers=headers_for(company))
+        assert response.status_code == 404
 
 
 # ---------------------------------------------------------------------------

@@ -29,6 +29,10 @@ export type MarketplaceConnection = {
   auto_post: boolean;
 };
 
+export type MarketplaceDefaults = {
+  base_url: string | null;
+};
+
 /** The remote `/v1/meta`, proxied — what a pasted base URL is validated against. */
 export type MarketplaceMeta = {
   marketplace_name: string;
@@ -36,6 +40,8 @@ export type MarketplaceMeta = {
   terms_url: string | null;
   registration_open: boolean;
   requires_approval: boolean;
+  /** Listings can be browsed, read-only, before registering. */
+  public_browse?: boolean;
   order_ttl_hours: number | null;
   event_retention_days?: number | null;
 };
