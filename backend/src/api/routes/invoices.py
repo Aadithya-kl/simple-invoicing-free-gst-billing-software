@@ -13,8 +13,8 @@ from decimal import Decimal
 
 logger = logging.getLogger(__name__)
 
-import weasyprint
-from src.services.pdf_render import safe_url_fetcher
+from src.services.pdf_paper import Paper, is_thermal, render_pdf, resolve_paper
+from src.services.pdf_templates.thermal_template import build_thermal_copies, thermal_invoice_doc
 
 from src.db.session import get_db
 from src.models.company_account import CompanyAccount
@@ -855,20 +855,28 @@ def update_invoice(
 
 
 
-def _build_invoice_pdf(invoice: Invoice, products: list[Product], invoice_bank_accounts: list[CompanyAccount], active_company: CompanyProfile | None = None, serials: dict[int, list[str]] | None = None, pay_qr_html: str = "", settlement: dict[str, float] | None = None) -> BytesIO:
+def _build_invoice_pdf(invoice: Invoice, products: list[Product], invoice_bank_accounts: list[CompanyAccount], active_company: CompanyProfile | None = None, serials: dict[int, list[str]] | None = None, pay_qr_html: str = "", settlement: dict[str, float] | None = None, paper: Paper = "a4", qr_uri: str = "") -> BytesIO:
+    """One copy of an invoice as a PDF. ``qr_uri`` is the pay QR for the thermal layout."""
+    if is_thermal(paper):
+        doc = thermal_invoice_doc(
+            invoice,
+            products,
+            bank_accounts=invoice_bank_accounts,
+            copy_label="" if invoice.voucher_type == "purchase" else _copy_label(1),
+            serials=serials,
+            qr_uri=qr_uri,
+            settlement=settlement,
+        )
+        return BytesIO(render_pdf(build_thermal_copies([doc], paper), paper))
     show_sku = active_company.show_sku_on_pdf if active_company else True
-    html = _build_invoice_html(invoice, products, invoice_bank_accounts, copy_label=_copy_label(1), show_sku=show_sku, serials=serials, pay_qr_html=pay_qr_html, settlement=settlement)
-    pdf_bytes = weasyprint.HTML(string=html, url_fetcher=safe_url_fetcher).write_pdf()
-    buf = BytesIO(pdf_bytes)
-    return buf
+    html = _build_invoice_html(invoice, products, invoice_bank_accounts, copy_label=_copy_label(1), show_sku=show_sku, serials=serials, pay_qr_html=pay_qr_html, settlement=settlement, paper=paper)
+    return BytesIO(render_pdf(html, paper))
 
 
 def _build_multi_copy_invoice_pdf(invoice: Invoice, products: list[Product], invoice_bank_accounts: list[CompanyAccount], copies: int, active_company: CompanyProfile | None = None, serials: dict[int, list[str]] | None = None, pay_qr_html: str = "", settlement: dict[str, float] | None = None) -> BytesIO:
     show_sku = active_company.show_sku_on_pdf if active_company else True
     html = _build_multi_copy_invoice_html(invoice, products, invoice_bank_accounts, copies, show_sku=show_sku, serials=serials, pay_qr_html=pay_qr_html, settlement=settlement)
-    pdf_bytes = weasyprint.HTML(string=html, url_fetcher=safe_url_fetcher).write_pdf()
-    buf = BytesIO(pdf_bytes)
-    return buf
+    return BytesIO(render_pdf(html))
 
 
 @router.get("/{invoice_id}/pdf")
@@ -876,6 +884,7 @@ def download_invoice_pdf(
     invoice_id: int,
     request: Request,
     copies: int = Query(default=1, ge=1, le=10),
+    paper: Paper | None = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     active_company: CompanyProfile = Depends(get_active_company),
@@ -897,7 +906,12 @@ def download_invoice_pdf(
         )
 
     pdf_buffer = render_invoice_pdf(
-        db, active_company.id, invoice_id, copies=copies, share_url=share_url
+        db,
+        active_company.id,
+        invoice_id,
+        copies=copies,
+        share_url=share_url,
+        paper=resolve_paper(paper, active_company),
     )
     filename = f"invoice_{invoice.invoice_number or invoice.id}.pdf"
 
