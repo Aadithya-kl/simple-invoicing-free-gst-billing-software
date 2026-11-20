@@ -809,5 +809,27 @@ def test_fractional_return_rejects_whole_number_product(client, db_session):
     before = _stock(db_session, product_id)
     response = _note(client, invoice, quantity=1.5)
     assert response.status_code == 400, response.text
-    assert "whole-number credit quantity" in response.json()["detail"]
+    assert response.json()["detail"] == "Quantity for Widget must be a whole number"
     assert _stock(db_session, product_id) == before
+
+
+@pytest.mark.parametrize("tax_inclusive", [False, True])
+def test_fractional_returns_add_back_to_the_invoice_line_tax(client, gst_seller, tax_inclusive):
+    product_id = client.post("/api/products/", json={
+        "sku": f"FRAC-GST-{uuid4().hex[:6]}",
+        "name": "Test fabric",
+        "price": 33.37,
+        "gst_rate": 18,
+        "allow_decimal": True,
+        "initial_quantity": 10,
+    }).json()["id"]
+    invoice = _sale(
+        client, {"quantity": 2.5, "unit_price": 33.37, "gst_rate": 18}, product_id=product_id, tax_inclusive=tax_inclusive
+    )
+    assert invoice["cgst_amount"] > 0
+
+    notes = [_note(client, invoice, quantity=q) for q in (1.125, 1.375)]
+
+    assert [n.status_code for n in notes] == [201, 201], [n.text for n in notes]
+    for field in ("taxable_amount", "cgst_amount", "sgst_amount", "total_amount"):
+        assert sum(n.json()[field] for n in notes) == pytest.approx(invoice[field], abs=1e-9), field

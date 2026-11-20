@@ -27,6 +27,11 @@ from src.services.inventory_service import InventoryManager
 from src.services.company_access import company_scope
 
 
+def _plain(quantity) -> str:
+    """A quantity without trailing zeros: 3, not 3.000."""
+    return f"{Decimal(str(quantity)).normalize():f}"
+
+
 def _return_note(credit_note_number: str) -> str:
     """The mark a return stamps on each unit it takes back.
 
@@ -352,12 +357,15 @@ def create_credit_note(
                 raise HTTPException(status_code=404, detail=f"Product {ii.product_id} not found")
             if not product.allow_decimal or product.track_serials:
                 raise HTTPException(
-                    status_code=400, detail=f"{product.name} requires a whole-number credit quantity"
+                    status_code=400, detail=f"Quantity for {product.name} must be a whole number"
                 )
         if payload.credit_note_type != "discount" and cn_item.quantity > ii.quantity:
             raise HTTPException(
                 status_code=400,
-                detail=f"Credit quantity {cn_item.quantity} exceeds original quantity {ii.quantity} for item {cn_item.invoice_item_id}",
+                detail=(
+                    f"Credit quantity {_plain(cn_item.quantity)} exceeds original quantity "
+                    f"{_plain(ii.quantity)} for item {cn_item.invoice_item_id}"
+                ),
             )
 
     # Check cumulative credited quantities per invoice_item_id
@@ -391,8 +399,8 @@ def create_credit_note(
                 raise HTTPException(
                     status_code=400,
                     detail=(
-                        f"Total credited quantity ({credited_after}) "
-                        f"exceeds original quantity ({original_qty}) for item {item_id}"
+                        f"Total credited quantity ({_plain(credited_after)}) "
+                        f"exceeds original quantity ({_plain(original_qty)}) for item {item_id}"
                     ),
                 )
 

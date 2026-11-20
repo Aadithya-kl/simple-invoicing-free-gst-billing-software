@@ -21,7 +21,7 @@ from src.models.invoice import Invoice
 from src.models.product import Product
 from src.services.gst_tax_service import to_india_date
 
-from .builders import _amount_in_words_indian, _e, _fmt_currency, _fmt_rate, document_paper_css
+from .builders import _amount_in_words_indian, _e, _fmt_currency, _fmt_rate, _pdf_display_quantity, document_paper_css
 from .purchase_template import _extract_pan_from_gstin, _is_interstate_supply
 
 CREDIT_NOTE_TYPE_LABELS = {
@@ -146,7 +146,7 @@ def _build_credit_note_html(
           <td>{product_name}</td>
           <td class="nowrap">{hsn}</td>
           <td>{source_number}</td>
-          <td class="right">{Decimal(str(item.quantity)).normalize():f}</td>
+          <td class="right">{_pdf_display_quantity(item.quantity, getattr(prod, 'allow_decimal', None) if prod else None)}</td>
           <td class="right">{_fmt_currency(float(item.unit_price or 0), currency)}</td>
           <td class="right">{_fmt_currency(float(item.taxable_amount or 0), currency)}</td>
           <td class="right">{_fmt_rate(float(item.gst_rate or 0))}%</td>
