@@ -105,7 +105,7 @@ def test_cancelled_note_says_so():
 
 def test_cancelled_date_is_the_india_date_not_the_utc_one():
     note, invoices, products, ledger = make_note(status="cancelled")
-    note.cancelled_at = datetime(2026, 11, 20, 20, 0)  
+    note.cancelled_at = datetime(2026, 11, 20, 20, 0)
     html = _build_credit_note_html(note, invoices, products, None, ledger)
     assert "Cancelled on 21 Nov 2026" in html
     assert "20 Nov 2026" not in html

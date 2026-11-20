@@ -22,7 +22,7 @@ from decimal import Decimal
 from src.core.validation import GST_STATE_NAMES
 from src.models.delivery_challan import STATUS_CANCELLED as CHALLAN_CANCELLED
 from src.models.quotation import DOCUMENT_PROFORMA, STATUS_CANCELLED
-from src.services.gst_tax_service import india_today, invoice_is_interstate
+from src.services.gst_tax_service import india_today, invoice_is_interstate, to_india_date
 from src.services.invoice_discounts import invoice_discount_amount, item_discount_amount
 from src.services.pdf_paper import page_css, thermal_width_mm
 
@@ -598,7 +598,7 @@ def thermal_credit_note_doc(credit_note, invoices, products, company, ledger) ->
     cancelled = credit_note.status == "cancelled"
     return ThermalDoc(
         title=label,
-        mark=f"Cancelled on {_fmt_date(credit_note.cancelled_at)}" if cancelled else "",
+        mark=f"Cancelled on {_fmt_date(to_india_date(credit_note.cancelled_at))}" if cancelled else "",
         company_name=seller_name,
         company_lines=_company_lines(
             pick("company_address", company.address if company else None),
@@ -655,7 +655,7 @@ def thermal_challan_doc(challan, products, *, copy_label: str = "", show_sku: bo
     return ThermalDoc(
         title="Delivery Challan",
         copy_label=copy_label,
-        mark=f"Cancelled on {_fmt_date(challan.cancelled_at)}" if challan.status == CHALLAN_CANCELLED else "",
+        mark=f"Cancelled on {_fmt_date(to_india_date(challan.cancelled_at))}" if challan.status == CHALLAN_CANCELLED else "",
         company_name=company_name,
         company_lines=_company_lines(
             challan.company_address,
@@ -702,7 +702,7 @@ def thermal_quotation_doc(quotation, products, bank_accounts=(), *, today=None) 
 
     mark = ""
     if quotation.status == STATUS_CANCELLED:
-        mark = f"Cancelled on {_fmt_date(quotation.cancelled_at)}"
+        mark = f"Cancelled on {_fmt_date(to_india_date(quotation.cancelled_at))}"
     elif quotation.is_expired_on(today):
         mark = f"Expired on {_fmt_date(quotation.valid_until)}"
 
