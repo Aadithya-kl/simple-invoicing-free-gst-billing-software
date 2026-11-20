@@ -28,7 +28,7 @@ from src.mcp_server.schema import (
 )
 
 # Measured against the real spec on 2026-09-08.
-EXPECTED_OPERATIONS = 191
+EXPECTED_OPERATIONS = 191  # Includes GET /api/tax-withholding-sections, the four /api/tds routes, the two TCS report routes and the three /api/products/bulk-update routes
 EXPECTED_TOOLS = 151  # generated only; `search` and `fetch` are added on top
 # The /api/quotations routes added ten operations and ten tools, and the GSTR-3B
 # worksheet three of each.

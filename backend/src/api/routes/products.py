@@ -38,10 +38,7 @@ from src.core.document_limits import MONEY_STORAGE_CUTOFF, QUANTITY_STORAGE_CUTO
 from src.core.validation import hsn_sac_warning, normalize_hsn_sac
 from src.services.serial_service import SerialManager
 
-from src.api.routes.product_bulk_updates import router as bulk_update_router
-
 router = APIRouter()
-router.include_router(bulk_update_router)
 
 
 def _is_whole_number(value: float) -> bool:

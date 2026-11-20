@@ -1,7 +1,8 @@
-﻿import { useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import api, { getApiErrorMessage } from '../../api/client';
 import ModalCloseButton from '../../components/ModalCloseButton';
 import { useEscapeClose } from '../../hooks/useEscapeClose';
+import { plural } from '../../utils/formatting';
 
 const endpoint = '/products/bulk-update';
 const labels: Record<string, string> = {
@@ -116,6 +117,9 @@ export default function BulkUpdateModal({
                   {preview.errors.map(({ row, message }) => <li key={row}>Row {row}. {message}</li>)}
                 </ul>
               )}
+              {preview.errors.length > 0 && preview.changes.length > 0 && (
+                <p role="status">Fix the rows above in your CSV and preview again. Nothing can be saved until every row is valid.</p>
+              )}
               {!preview.errors.length && !preview.changes.length && <p role="status">No changes found.</p>}
               {preview.changes.length > 0 && (
                 <div style={{ overflowX: 'auto' }}>
@@ -145,7 +149,7 @@ export default function BulkUpdateModal({
               {preview.token && (
                 <button type="button" className="button button--primary"
                   disabled={busy || (hasStock && !confirmStock)} onClick={() => void run(save)}>
-                  Save {preview.changes.length} product updates
+                  Save {plural(preview.changes.length, 'product update')}
                 </button>
               )}
             </>

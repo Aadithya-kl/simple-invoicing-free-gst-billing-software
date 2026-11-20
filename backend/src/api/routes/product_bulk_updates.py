@@ -14,6 +14,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from src.api.deps import get_active_company, require_company_role
+from src.core.analytics import distinct_id_for, track
 from src.core.config import settings
 from src.core.document_limits import MONEY_LIMIT, QUANTITY_LIMIT
 from src.core.validation import hsn_sac_warning, normalize_hsn_sac
@@ -24,7 +25,7 @@ from src.models.product import Product
 from src.models.product_bulk_update import ProductBulkUpdate
 from src.models.user import User, UserRole
 
-router = APIRouter(prefix="/bulk-update")
+router = APIRouter()
 editor = require_company_role(UserRole.admin, UserRole.manager)
 signer = URLSafeTimedSerializer(settings.SECRET_KEY, salt="product-bulk-update-v1")
 MAX_BYTES = 1024 * 1024
@@ -52,6 +53,13 @@ def stock_rows(db: Session, company_id: int, ids: list[int], *, lock: bool = Fal
 def displayed_name(name: str) -> str:
     # A text prefix protects formula-looking names in spreadsheet applications.
     return f"Name: {name}"
+
+
+def unprefixed(name: str) -> str:
+    name = name.strip()
+    if name[:5].casefold() == "name:":
+        name = name[5:]
+    return name.strip().casefold()
 
 
 @router.get("/export")
@@ -110,7 +118,9 @@ def row_changes(row: dict, product: Product, stock: Inventory | None) -> dict:
             raise ValueError(f"{column} GST must be Inclusive or Exclusive")
         proposed[field] = format(price, ".2f")
 
-    code = row["HSN/SAC"].removeprefix("HSN:")
+    code = row["HSN/SAC"]
+    if code[:4].casefold() == "hsn:":
+        code = code[4:].strip()
     if row["HSN/SAC"] and code != product.hsn_sac:
         hsn = normalize_hsn_sac(code)
         if not hsn:
@@ -179,8 +189,10 @@ def preview_bulk_update(
                     product = by_id.get(row["Product ID"])
                     if product is None:
                         raise ValueError("Unknown product ID")
+                    if row["Product Name"] and unprefixed(row["Product Name"]) != product.name.strip().casefold():
+                        raise ValueError("Product name does not match the product ID")
                 else:
-                    name = row["Product Name"].removeprefix("Name: ").strip().casefold()
+                    name = unprefixed(row["Product Name"])
                     matches = by_name.get(name, [])
                     if len(matches) != 1:
                         raise ValueError("Product name must match exactly one product")
@@ -279,4 +291,9 @@ def confirm_bulk_update(
         if db.get(ProductBulkUpdate, preview["id"]):
             return {"updated": len(changes)}
         raise HTTPException(409, "Catalogue or stock changed. Preview the CSV again.") from exc
+    track(
+        "products_bulk_updated",
+        distinct_id_for(user),
+        {"product_count": len(changes), "stock_count": len(stock_ids)},
+    )
     return {"updated": len(changes)}
