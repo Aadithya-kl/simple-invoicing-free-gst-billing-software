@@ -19,6 +19,7 @@ from src.models.buyer import Buyer as Ledger
 from src.models.credit_note import CreditNote
 from src.models.invoice import Invoice
 from src.models.product import Product
+from src.services.gst_tax_service import to_india_date
 
 from .builders import _amount_in_words_indian, _e, _fmt_currency, _fmt_rate, document_paper_css
 from .purchase_template import _extract_pan_from_gstin, _is_interstate_supply
@@ -204,7 +205,7 @@ def _build_credit_note_html(
 
     cancelled = credit_note.status == "cancelled"
     cancelled_html = (
-        f'<div class="sheet__cancelled">Cancelled on {_fmt_date(credit_note.cancelled_at)}</div>'
+        f'<div class="sheet__cancelled">Cancelled on {_fmt_date(to_india_date(credit_note.cancelled_at))}</div>'
         if cancelled
         else ""
     )
