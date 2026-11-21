@@ -373,3 +373,27 @@ def test_financial_year_same_label_allowed_across_companies(client):
         _restore_user_override(old_override)
 
 
+
+
+def test_new_company_starts_with_one_cash_account(client, db_session: Session):
+    """A new company's receipts need an account to land in, or they show as Unallocated."""
+    old_override = _with_persistent_user_override()
+    try:
+        company_id = _create_company(client, "Cash Seed Co")
+        accounts = client.get("/api/company-accounts/", headers=_headers(company_id))
+        assert accounts.status_code == 200, accounts.text
+        assert [(a["display_name"], a["account_type"], a["display_on_invoice"]) for a in accounts.json()] == [
+            ("Cash", "cash", False)
+        ]
+
+        # Seeding again (or for a company that set up accounts) adds nothing.
+        from src.models.company import CompanyProfile
+        from src.services.company_accounts import seed_default_cash_account
+
+        company = db_session.query(CompanyProfile).filter(CompanyProfile.id == company_id).one()
+        assert seed_default_cash_account(db_session, company) is None
+        db_session.commit()
+        again = client.get("/api/company-accounts/", headers=_headers(company_id))
+        assert len(again.json()) == 1
+    finally:
+        _restore_user_override(old_override)

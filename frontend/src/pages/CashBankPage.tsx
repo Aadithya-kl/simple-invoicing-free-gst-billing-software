@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api, { getApiErrorMessage } from '../api/client';
 import ModalCloseButton from '../components/ModalCloseButton';
@@ -74,10 +74,14 @@ export default function CashBankPage() {
 
   const activeCurrencyCode = company?.currency_code || 'INR';
 
+  // Open on the first account once, when the accounts first arrive. Not on every
+  // empty selection: "Unallocated" is also the empty value, and re-picking then
+  // made the Unallocated view impossible to open once any account existed.
+  const initialAccountPicked = useRef(false);
   useEffect(() => {
-    if (deepLinkPinned) return;
-    if (selectedAccountId !== '') return;
-    if (accounts.length === 0) return;
+    if (initialAccountPicked.current || accounts.length === 0) return;
+    initialAccountPicked.current = true;
+    if (deepLinkPinned || selectedAccountId !== '') return;
     setSelectedAccountId(String(accounts[0].id));
   }, [accounts, deepLinkPinned, selectedAccountId]);
 
@@ -232,7 +236,9 @@ export default function CashBankPage() {
 
   async function handleSubmitEntry(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!selectedAccount) {
+    // Editing works in the Unallocated view too (the entry stays unallocated);
+    // only a new entry needs an account to go in.
+    if (!editingEntry && !selectedAccount) {
       setError('Select an account to add entry');
       return;
     }
@@ -256,7 +262,7 @@ export default function CashBankPage() {
         );
         await api.put<Payment>(`/payments/${editingEntry.id}`, payload);
         setSuccess('Entry updated');
-      } else {
+      } else if (selectedAccount) {
         const payload: PaymentCreate = {
           ledger_id: null,
           voucher_type: voucherType,

@@ -34,9 +34,10 @@ def test_company_account_create_list_and_deactivate(client):
     assert created["account_type"] == "bank"
     assert created["is_active"] is True
 
+    # Every company starts with a seeded "Cash" account; this test is about the one it adds.
     list_active = client.get("/api/company-accounts/")
     assert list_active.status_code == 200, list_active.text
-    active_items = list_active.json()
+    active_items = [item for item in list_active.json() if item["display_name"] != "Cash"]
     assert len(active_items) == 1
     assert active_items[0]["id"] == created["id"]
 
@@ -45,11 +46,11 @@ def test_company_account_create_list_and_deactivate(client):
 
     list_after_deactivate = client.get("/api/company-accounts/")
     assert list_after_deactivate.status_code == 200, list_after_deactivate.text
-    assert list_after_deactivate.json() == []
+    assert created["id"] not in [item["id"] for item in list_after_deactivate.json()]
 
     list_including_inactive = client.get("/api/company-accounts/", params={"include_inactive": True})
     assert list_including_inactive.status_code == 200, list_including_inactive.text
-    all_items = list_including_inactive.json()
+    all_items = [item for item in list_including_inactive.json() if item["id"] == created["id"]]
     assert len(all_items) == 1
     assert all_items[0]["is_active"] is False
 

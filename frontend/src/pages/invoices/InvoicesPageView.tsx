@@ -53,6 +53,7 @@ import StockUpdateModal from './components/StockUpdateModal';
 import ReceiptModal from '../../components/ReceiptModal';
 import { FieldError, LineFieldErrors, useFormFieldErrors } from '../../hooks/useFormFieldErrors';
 import { createItem, type InvoiceFormItem } from './types';
+import { defaultPaymentAccountId } from '../../utils/cashBank';
 
 export default function InvoicesPage() {
   const { activeFY } = useFY();
@@ -214,6 +215,8 @@ export default function InvoicesPage() {
         const res = await api.get<CompanyAccount[]>('/company-accounts/');
         if (cancelled) return;
         setCompanyAccounts(res.data);
+        // Start on the company's Cash account rather than Unallocated.
+        setSelectedPaymentAccountId((current) => current || String(defaultPaymentAccountId(res.data) ?? ''));
       } catch {
         // Keep payment voucher flow usable even when accounts fail to load.
       }
@@ -741,7 +744,7 @@ export default function InvoicesPage() {
     setStockShortage(null);
     setPaymentMode('cash');
     setPaymentReference('');
-    setSelectedPaymentAccountId('');
+    setSelectedPaymentAccountId(String(defaultPaymentAccountId(companyAccounts) ?? ''));
     setPaymentAmount('');
     itemsRef.current = [createItem(1)];
     setItems(itemsRef.current);
